@@ -11,7 +11,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://onvotar29n.junts.cat/">
 <meta property="og:title" content="On votar el 29N?">
-<meta property="og:description" content="Troba la teva mesa i el teu col·legi electoral a Catalunya amb l'adreça i el primer cognom.">
+<meta property="og:description" content="Troba la teva mesa i el teu col·legi electoral a Catalunya amb l'adreça i la inicial del primer cognom.">
 <meta property="og:locale" content="ca_ES">
 <style>
 @font-face{font-family:Steradian;src:url(fonts/Steradian-Rg.ttf) format("truetype");font-weight:400;font-display:swap}
@@ -67,6 +67,9 @@ label{display:block;font-weight:700;font-size:14px;letter-spacing:.02em;text-tra
   background:var(--black);box-shadow:0 10px 24px -10px rgba(20,20,19,.6);transition:transform .1s,filter .15s;margin-top:6px}
 .btn:active{transform:scale(.98)}
 .btn:disabled{filter:grayscale(.6) opacity(.55);box-shadow:none;cursor:not-allowed}
+.inp.inicial{width:96px;text-align:center;font-size:24px;font-weight:700;text-transform:uppercase}
+.inp.inicial::placeholder{font-size:17px;font-weight:400;text-transform:none}
+.ajuda{display:block;margin:6px 2px 0;font-size:13.5px;color:var(--muted)}
 .priv{display:flex;gap:10px;align-items:flex-start;margin:16px 2px 0;font-size:13.5px;color:var(--muted)}
 .priv svg{flex:none;margin-top:1px}
 .err{display:none;margin:0 0 14px;padding:12px 14px;border-radius:14px;background:var(--warn-bg);color:var(--warn);font-size:15px}
@@ -199,14 +202,15 @@ main .card,.wrap .card{animation:up .6s .22s cubic-bezier(.2,.8,.2,1) both}
         <ul class="sug" id="sug" role="listbox"></ul>
       </div>
       <div class="field">
-        <label for="cog">Primer cognom</label>
-        <input class="inp" id="cog" type="text" enterkeyhint="search" placeholder="Ex.: Puig" autocapitalize="words" spellcheck="false">
+        <label for="cog">Inicial del primer cognom</label>
+        <input class="inp inicial" id="cog" type="text" maxlength="1" enterkeyhint="search" placeholder="Ex.: P" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-describedby="cog-ajuda">
+        <small class="ajuda" id="cog-ajuda">Només la primera lletra. Per exemple, si et dius Puig, escriu P.</small>
       </div>
       <button class="btn" id="go" type="submit">Troba el meu col·legi</button>
     </form>
     <p class="priv">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-      <span>No recollim ni desem cap dada. La cerca es fa al teu mòbil i del cognom només en fem servir la primera lletra.</span>
+      <span>No recollim ni desem cap dada. La cerca es fa al teu mòbil.</span>
     </p>
   </section>
 
@@ -384,6 +388,8 @@ main .card,.wrap .card{animation:up .6s .22s cubic-bezier(.2,.8,.2,1) both}
   document.addEventListener("click",function(e){if(e.target!==inC && !e.target.closest("#sug")) close()});
   inC.addEventListener("blur",function(){setTimeout(close,150)});
 
+  // Només una lletra a la casella de la inicial
+  inG.addEventListener("input",function(){ var v=inG.value.replace(/[^A-Za-zÀ-ÿÑñÇç]/g,"").slice(0,1).toUpperCase(); if(v!==inG.value) inG.value=v; });
   // Lletra del primer cognom
   function inicial(c){
     var n=(c||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
@@ -448,7 +454,7 @@ main .card,.wrap .card{animation:up .6s .22s cubic-bezier(.2,.8,.2,1) both}
     var s0=chosen, code=muniOf(s0).code;
     function senseNum(){showErr("Afegeix el número del portal, per exemple: "+esc(chosen.n)+", 12.");inC.focus()}
     if(n==null&&M[code]&&!nomesSN(M[code].carrers[s0.pos][1])){senseNum();return}
-    if(!l){showErr("Escriu el teu primer cognom. Només en farem servir la primera lletra.");inG.focus();return}
+    if(!l){showErr("Escriu la inicial del teu primer cognom (només la primera lletra).");inG.focus();return}
     carrega(code).then(function(d){
       var t=d.carrers[s0.pos][1];
       // carrer escrit sense número que només té portals sense número
