@@ -4,8 +4,8 @@ Cercador per saber la mesa i el col·legi electoral a partir de l'adreça i del 
 És una web estàtica: `index.html` + `dades.json`. Les cerques es fan al navegador i no s'envia ni es desa cap dada.
 
 ## Publicar
-- **Vercel**: importa el repositori, sense comandament de build i amb el directori arrel per defecte. `vercel.json` hi afegeix la capçalera `X-Robots-Tag: noindex`.
 - **GitHub Pages**: Settings → Pages → Deploy from branch → `main` / root (cal que el repositori sigui públic al pla gratuït).
+- La web no s'indexa als cercadors gràcies a `robots.txt` i a les etiquetes `noindex` de l'`index.html`.
 
 ## Actualitzar les dades (abans de cada elecció)
 1. Baixa el *Callejero del Censo Electoral* de l'INE (província de Barcelona, el període més recent):
