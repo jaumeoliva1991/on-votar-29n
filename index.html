@@ -198,7 +198,8 @@ body.amb-res #form{display:none}
   function clearErr(){err.classList.remove("on")}
 
   // Dades: índex de carrers de tot Catalunya + un fitxer per municipi
-  fetch("dades/index.json").then(function(r){return r.json()}).then(function(d){
+  // index.json sempre es revalida; els fitxers de municipi porten la versió a l'adreça i es comproven
+  fetch("dades/index.json",{cache:"no-cache"}).then(function(r){return r.json()}).then(function(d){
     IDX=d;
     d.municipis.forEach(function(m,mi){
       MUNIS.push({code:m[0],name:m[1],n:norm(m[1]),k:key(m[1]),c:norm(m[1]).replace(/ /g,""),ck:key(m[1]).replace(/ /g,"")});
@@ -210,7 +211,10 @@ body.amb-res #form{display:none}
   }).catch(function(){showErr("No s'han pogut carregar les dades. Torna-ho a provar d'aquí a una estona.")});
   function carrega(code){
     if(M[code]) return Promise.resolve(M[code]);
-    return fetch("dades/m/"+code+".json").then(function(r){return r.json()}).then(function(d){M[code]=d;return d});
+    var v=(IDX&&IDX.v)||"", url="dades/m/"+code+".json"+(v?"?v="+v:"");
+    function get(opt){return fetch(url,opt).then(function(r){return r.json()})}
+    return get().then(function(d){ return (!v||d.v===v)?d:get({cache:"reload"}); })
+      .then(function(d){ if(v&&d.v!==v) throw new Error("versio"); M[code]=d; return d; });
   }
   function muniOf(s){return MUNIS[s.mi]}
 

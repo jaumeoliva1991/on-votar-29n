@@ -13,7 +13,7 @@ Sortida (a l'arrel del web):
 Ús:
   python3 eines/construir_provincia.py TRAM.P08... VIAS.P08... BOP.txt
 """
-import json, os, re, sys, collections
+import json, os, re, sys, collections, hashlib
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from construir_dades import TIPUS, TIPUS_ADR, PARTICULES, DISTRICTES, bonic, titol, llegir
 from llegir_bop import parse, separar
@@ -230,7 +230,8 @@ def main():
     for old in glob.glob(os.path.join(SORTIDA, "m", "*.json")):
         os.remove(old)
     codis = sorted(munis, key=lambda c: (c != "019", norm_txt(munis[c])))
-    index_munis, n_carrers, sense_meses = [], 0, collections.Counter()
+    index_munis, n_carrers, sense_meses, fitxers = [], 0, collections.Counter(), {}
+    # Versió de les dades: el web comprova que index.json i dades/m/*.json siguin de la mateixa generació
     for mun in codis:
         carrers = sorted(([noms.get((mun, cv), "?"), sorted(ts)] for cv, ts in trams[mun].items()),
                          key=lambda c: c[0])
@@ -244,12 +245,17 @@ def main():
                  "carrers": [[n, [list(t) for t in ts]] for n, ts in carrers]}
         if mun == "019":
             dades["districtes"] = {str(k): v for k, v in DISTRICTES.items()}
+        fitxers[mun] = dades
+
+    versio = hashlib.sha1(json.dumps([index_munis, fitxers], ensure_ascii=False, sort_keys=True).encode()).hexdigest()[:10]
+    for mun, dades in fitxers.items():
+        dades["v"] = versio
         json.dump(dades, open(os.path.join(SORTIDA, "m", f"{mun}.json"), "w", encoding="utf-8"),
                   ensure_ascii=False, separators=(",", ":"))
 
     data = max(dates)
     index = {"font": "Eleccions 29N · Catalunya · Dades: INE, Cens Electoral (20%s/%s) i BOP" % (data[:2], data[2:4]),
-             "municipis": index_munis}
+             "v": versio, "municipis": index_munis}
     json.dump(index, open(os.path.join(SORTIDA, "index.json"), "w", encoding="utf-8"),
               ensure_ascii=False, separators=(",", ":"))
     print(f"{len(codis)} municipis, {n_carrers} carrers, {n_meses} meses, {n_cor} correccions aplicades")
