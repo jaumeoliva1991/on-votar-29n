@@ -81,11 +81,19 @@ label{display:block;font-weight:700;font-size:14px;letter-spacing:.02em;text-tra
 .local .k{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink);opacity:.7;font-weight:700;margin-bottom:4px}
 .local .nom{font-size:24px;font-weight:900;line-height:1.2;margin-bottom:6px}
 .local .adr{font-size:18px;color:var(--ink)}
-.qr{display:flex;align-items:center;gap:14px;margin-top:16px;padding:12px;border-radius:18px;border:2px solid var(--line)}
-.qr .img{flex:none;width:112px;height:112px;background:#fff;border-radius:10px;padding:6px}
-.qr .img svg{width:100%;height:100%;display:block}
-.qr p{margin:0;font-size:15px;line-height:1.35}
-.qr p b{display:block;font-size:16px;margin-bottom:2px}
+.a.s{background:var(--brand-xl);border-color:var(--brand);color:var(--ink)}
+.sh{grid-column:1/-1;border:2px solid var(--line);border-radius:18px;padding:12px}
+.sh[hidden],.pane[hidden]{display:none}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--field);padding:4px;border-radius:12px;margin-bottom:12px}
+.tab{height:40px;border:0;border-radius:9px;background:transparent;font:inherit;font-weight:700;font-size:15px;color:var(--muted);cursor:pointer}
+.tab.on{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.pane{text-align:center}
+.pane p{margin:10px 0 2px;font-size:15px}
+.qrimg{width:min(240px,70vw);aspect-ratio:1;margin:0 auto;background:#fff;padding:10px;border-radius:12px}
+.qrimg svg{width:100%;height:100%;display:block}
+.url{font-size:14px;word-break:break-all;background:var(--field);border-radius:10px;padding:10px;margin-bottom:10px;text-align:left}
+.row2{display:flex;gap:8px}
+.row2 .a{flex:1;height:48px;font-size:15px}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
 .a{display:flex;align-items:center;justify-content:center;gap:8px;height:54px;border-radius:16px;font:inherit;font-weight:700;font-size:16px;text-decoration:none;cursor:pointer;border:2px solid var(--line);background:var(--card);color:var(--ink)}
 .a.w{grid-column:1/-1}
@@ -306,13 +314,14 @@ footer .by{opacity:.85}
         '<div class="t m"><div class="l">Mesa</div><div class="n'+(unica?' sm':'')+'">'+(unica?'Única':esc(m[0]))+'</div></div></div>'+
         (unica?'':'<div class="c">Cognoms de la <b>'+esc(m[1])+'</b> a la <b>'+esc(m[2])+'</b></div>')+'</div>'+
       '<div class="local"><div class="k">Col·legi electoral</div><div class="nom">'+esc(loc[0])+'</div><div class="adr">'+esc(loc[1])+' · '+esc(loc[2])+' Barcelona</div></div>'+
-      (withQr?qrBox(link(sec,m)):'')+
       '<div class="acts">'+
         '<a class="a p" href="'+maps(loc)+'" target="_blank" rel="noopener"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Com arribar-hi</a>'+
+        (withQr?'<button class="a w s" type="button" id="share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>Comparteix amb el votant</button>'+shareBox(link(sec,m)):'')+
         '<button class="a w" type="button" id="again">'+(withQr?'Nova cerca':'Busca una altra adreça')+'</button>'+
       '</div>'+
       '<p class="note">Informació orientativa. En cas de dubte, consulta la teva targeta censal o la consulta oficial.</p>';
     reveal();
+    if(withQr) wireShare(link(sec,m));
   }
   // Obertura des del QR: ?s=5-10&m=B
   function fromUrl(){
@@ -334,10 +343,28 @@ footer .by{opacity:.85}
       '<div class="acts"><button class="a p" type="button" id="again">Nova cerca</button></div>';
     reveal();
   }
-  function qrBox(url){
-    try{ var q=qrcode(0,"M"); q.addData(url); q.make();
-      return '<div class="qr"><div class="img" role="img" aria-label="Codi QR cap a Google Maps">'+q.createSvgTag({cellSize:4,margin:0,scalable:true})+'</div><p><b>Ensenya aquest QR</b>Qui l\'escanegi veurà la seva secció, la mesa i el col·legi, amb el botó per arribar-hi amb Google Maps.</p></div>';
-    }catch(e){return ""}
+  function shareBox(url){
+    var svg=""; try{ var q=qrcode(0,"M"); q.addData(url); q.make(); svg=q.createSvgTag({cellSize:4,margin:0,scalable:true}); }catch(e){}
+    return '<div class="sh" id="sh" hidden>'+
+      '<div class="tabs" role="tablist"><button type="button" class="tab on" data-t="qr">Codi QR</button><button type="button" class="tab" data-t="ln">Enllaç</button></div>'+
+      '<div class="pane" data-p="qr"><div class="qrimg" role="img" aria-label="Codi QR">'+svg+'</div><p>Que el votant l\'escanegi amb la càmera del mòbil.</p></div>'+
+      '<div class="pane" data-p="ln" hidden><div class="url">'+esc(url)+'</div>'+
+        '<div class="row2">'+(navigator.share?'<button type="button" class="a" id="nat">Envia…</button>':'')+
+        '<a class="a" target="_blank" rel="noopener" href="https://wa.me/?text='+encodeURIComponent("On has d'anar a votar el 29N: "+url)+'">WhatsApp</a>'+
+        '<button type="button" class="a" id="copy">Copia</button></div></div>'+
+    '</div>';
+  }
+  function wireShare(url){
+    var b=$("share"); if(!b) return; var sh=$("sh");
+    b.addEventListener("click",function(){sh.hidden=!sh.hidden; if(!sh.hidden) sh.scrollIntoView({behavior:"smooth",block:"center"})});
+    [].forEach.call(sh.querySelectorAll(".tab"),function(t){t.addEventListener("click",function(){
+      [].forEach.call(sh.querySelectorAll(".tab"),function(x){x.classList.toggle("on",x===t)});
+      [].forEach.call(sh.querySelectorAll(".pane"),function(p){p.hidden=p.dataset.p!==t.dataset.t});
+    })});
+    var nat=$("nat"); if(nat) nat.addEventListener("click",function(){navigator.share({title:"On voto el 29N?",text:"On has d'anar a votar el 29N:",url:url}).catch(function(){})});
+    $("copy").addEventListener("click",function(){var c=this;
+      (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(function(){c.textContent="Copiat!"},function(){c.textContent="No s'ha pogut copiar"});
+      setTimeout(function(){c.textContent="Copia"},2000)});
   }
   function secNum(k){return String(k).split("-")[1]}
   function dName(k){var d=String(k).split("-")[0];return (D.meta&&D.meta.districtes&&D.meta.districtes[d])||("Districte "+d)}
