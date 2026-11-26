@@ -169,6 +169,7 @@ footer .by{opacity:.85}
     D=d;
     streets=d.carrers.map(function(c){var k=key(c[0]);return {n:c[0],k:k,full:norm(c[0]),t:c[1]}});
     if(d.meta&&d.meta.font) $("font").textContent=d.meta.font;
+    fromUrl();
   }).catch(function(){showErr("No s'han pogut carregar les dades. Torna-ho a provar d'aquí a una estona.")});
 
   // Autocompletar
@@ -292,25 +293,38 @@ footer .by{opacity:.85}
 
   function show(sec,n,l){
     var m=mesaFor(sec,l); if(!m){showErr("No trobem la mesa per a aquesta secció.");return}
-    var loc=D.locals[m[3]], unica=m[0]==="U";
-    var mesaTxt=unica?"Mesa única":"Mesa "+m[0];
-    var where=esc(chosen.n)+", "+n, sn=secNum(sec);
-    var msg="On voto el 29N? "+chosen.n+", "+n+"\n"+dName(sec)+" · Secció "+sn+" · "+mesaTxt+"\n"+loc[0]+"\n"+loc[1]+" ("+loc[2]+" Barcelona)\n"+maps(loc);
-    res.innerHTML=
-      '<p class="where">Per a <b>'+where+'</b>'+(unica?'':' · cognom per <b>'+esc(l)+'</b>')+'</p>'+
+    var unica=m[0]==="U";
+    card(sec,m,'<p class="where">Per a <b>'+esc(chosen.n)+", "+n+'</b>'+(unica?'':' · cognom per <b>'+esc(l)+'</b>')+'</p>',true);
+  }
+  // Enllaç per al QR: només secció i mesa, cap dada personal
+  function link(sec,m){return location.origin+location.pathname+"?s="+encodeURIComponent(sec)+"&m="+encodeURIComponent(m[0])}
+  function card(sec,m,head,withQr){
+    var loc=D.locals[m[3]], unica=m[0]==="U", sn=secNum(sec);
+    res.innerHTML=head+
       '<div class="vot"><div class="dist">'+esc(dName(sec))+'</div><div class="grid">'+
         '<div class="t"><div class="l">Secció</div><div class="n">'+esc(sn)+'</div></div>'+
         '<div class="t m"><div class="l">Mesa</div><div class="n'+(unica?' sm':'')+'">'+(unica?'Única':esc(m[0]))+'</div></div></div>'+
         (unica?'':'<div class="c">Cognoms de la <b>'+esc(m[1])+'</b> a la <b>'+esc(m[2])+'</b></div>')+'</div>'+
       '<div class="local"><div class="k">Col·legi electoral</div><div class="nom">'+esc(loc[0])+'</div><div class="adr">'+esc(loc[1])+' · '+esc(loc[2])+' Barcelona</div></div>'+
-      qrBox(maps(loc))+
+      (withQr?qrBox(link(sec,m)):'')+
       '<div class="acts">'+
         '<a class="a p" href="'+maps(loc)+'" target="_blank" rel="noopener"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Com arribar-hi</a>'+
-        '<button class="a w" type="button" id="again">Nova cerca</button>'+
+        '<button class="a w" type="button" id="again">'+(withQr?'Nova cerca':'Busca una altra adreça')+'</button>'+
       '</div>'+
       '<p class="note">Informació orientativa. En cas de dubte, consulta la teva targeta censal o la consulta oficial.</p>';
     reveal();
   }
+  // Obertura des del QR: ?s=5-10&m=B
+  function fromUrl(){
+    try{
+      var q=new URLSearchParams(location.search), sec=q.get("s"), mm=q.get("m");
+      if(!sec||!mm||!D.seccions[sec]) return;
+      var m=D.seccions[sec].filter(function(x){return x[0]===mm})[0]; if(!m) return;
+      card(sec,m,'<p class="where" style="font-size:18px"><b>Aquí és on has d\'anar a votar el 29N:</b></p>',false);
+      history.replaceState(null,"",location.pathname+location.search);
+    }catch(e){}
+  }
+
   function showNone(n,v,l){
     var opts=v.map(function(sec){var m=mesaFor(sec,l);if(!m)return "";var loc=D.locals[m[3]];
       return '<li>Secció '+esc(secNum(sec))+(m[0]==="U"?"":" · Mesa "+esc(m[0]))+': <b>'+esc(loc[0])+'</b>, '+esc(loc[1])+'</li>'}).join("");
@@ -322,7 +336,7 @@ footer .by{opacity:.85}
   }
   function qrBox(url){
     try{ var q=qrcode(0,"M"); q.addData(url); q.make();
-      return '<div class="qr"><div class="img" role="img" aria-label="Codi QR cap a Google Maps">'+q.createSvgTag({cellSize:4,margin:0,scalable:true})+'</div><p><b>Escaneja i ves-hi</b>Obre la ubicació del col·legi a Google Maps des d\'un altre mòbil.</p></div>';
+      return '<div class="qr"><div class="img" role="img" aria-label="Codi QR cap a Google Maps">'+q.createSvgTag({cellSize:4,margin:0,scalable:true})+'</div><p><b>Ensenya aquest QR</b>Qui l\'escanegi veurà la seva secció, la mesa i el col·legi, amb el botó per arribar-hi amb Google Maps.</p></div>';
     }catch(e){return ""}
   }
   function secNum(k){return String(k).split("-")[1]}
@@ -336,7 +350,7 @@ footer .by{opacity:.85}
   }
   function reveal(){
     form.style.display="none"; res.classList.add("on");
-    $("again").addEventListener("click",function(){res.classList.remove("on");form.style.display="";inC.value="";chosen=null;inC.classList.remove("ok");inC.placeholder="Ex.: carrer Muntaner, 240";inG.value="";inC.focus();window.scrollTo({top:0,behavior:"smooth"})});
+    $("again").addEventListener("click",function(){if(location.search)history.replaceState(null,"",location.pathname);res.classList.remove("on");form.style.display="";inC.value="";chosen=null;inC.classList.remove("ok");inC.placeholder="Ex.: carrer Muntaner, 240";inG.value="";inC.focus();window.scrollTo({top:0,behavior:"smooth"})});
     window.scrollTo({top:0,behavior:"smooth"});
   }
 })();
