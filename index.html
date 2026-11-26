@@ -202,7 +202,8 @@ body.amb-res #form{display:none}
     IDX=d;
     d.municipis.forEach(function(m,mi){
       MUNIS.push({code:m[0],name:m[1],n:norm(m[1]),k:key(m[1]),c:norm(m[1]).replace(/ /g,""),ck:key(m[1]).replace(/ /g,"")});
-      m[2].forEach(function(nom,pos){streets.push({n:nom,k:key(nom),full:norm(nom),mi:mi,pos:pos})});
+      var sc={}; (m[3]||[]).forEach(function(i){sc[i]=1}); // cases i finques sense carrer ni número
+      m[2].forEach(function(nom,pos){streets.push({n:nom,k:key(nom),full:norm(nom),mi:mi,pos:pos,sc:!!sc[pos]})});
     });
     if(d.font) $("font").textContent=d.font;
     carrega("019").then(function(){ if(inC.value) render(); });
@@ -287,7 +288,8 @@ body.amb-res #form{display:none}
   }
   function trams(s){var d=M[muniOf(s).code];return d?d.carrers[s.pos][1]:null}
   function lloc(s,num){
-    var mu=muniOf(s); if(mu.code!=="019") return mu.name;
+    var mu=muniOf(s); if(s.sc) return "Casa o finca sense carrer · "+mu.name;
+    if(mu.code!=="019") return mu.name;
     var t=trams(s), ds=[]; if(!t) return "Barcelona";
     if(num) seccions(t,num).forEach(function(k){var d=dName("019",k);if(ds.indexOf(d)<0)ds.push(d)});
     if(!ds.length) t.forEach(function(r){var d=dName("019",r[3]);if(ds.indexOf(d)<0)ds.push(d)});
@@ -299,19 +301,21 @@ body.amb-res #form{display:none}
     if(!r.p.street.trim()){close();return}
     if(r.badMuni){sug.innerHTML='<li class="none">No trobem el municipi «'+esc(r.badMuni)+'» a Catalunya.</li>';open();return}
     if(!list.length){sug.innerHTML='<li class="none">No trobem aquest carrer a Catalunya.</li>';open();return}
-    sug.innerHTML=list.map(function(s,i){return '<li role="option" data-i="'+i+'">'+hilite(s.n,r.street)+(curNum?', '+curNum:'')+'<small>'+esc(lloc(s,curNum))+'</small></li>'}).join("");
+    sug.innerHTML=list.map(function(s,i){return '<li role="option" data-i="'+i+'">'+hilite(s.n,r.street)+(curNum&&!s.sc?', '+curNum:'')+'<small>'+esc(lloc(s,curNum))+'</small></li>'}).join("");
     open();
   }
   function open(){sug.classList.add("on");inC.setAttribute("aria-expanded","true")}
   function close(){sug.classList.remove("on");inC.setAttribute("aria-expanded","false")}
-  function valor(s,num){var mu=muniOf(s);return s.n+", "+(num?num:"")+(mu.code!=="019"&&num?", "+mu.name:"")}
+  function valor(s,num){var mu=muniOf(s);if(s.sc) return s.n+(mu.code!=="019"?", "+mu.name:"");return s.n+", "+(num?num:"")+(mu.code!=="019"&&num?", "+mu.name:"")}
   function pick(i){
     chosen=list[i]; clearErr(); close(); carrega(muniOf(chosen).code);
+    if(chosen.sc){ inC.value=valor(chosen); inC.classList.add("ok"); inG.focus(); return; }
     if(curNum){ inC.value=valor(chosen,curNum); inC.classList.add("ok"); inG.focus(); }
     else { inC.value=valor(chosen,null); inC.focus(); try{inC.setSelectionRange(inC.value.length,inC.value.length)}catch(e){} inC.placeholder="Ara afegeix el número del portal"; }
   }
   inC.addEventListener("input",function(){
     var p=parse(inC.value);
+    if(chosen && chosen.sc && inC.value===valor(chosen)) return;
     if(chosen && norm(p.street)===norm(chosen.n)){ curNum=p.num; inC.classList.toggle("ok",!!p.num); if(!p.num) render(); else close(); return; }
     chosen=null;inC.classList.remove("ok");render();
   });
@@ -359,13 +363,18 @@ body.amb-res #form{display:none}
     e.preventDefault(); clearErr(); close();
     if(!IDX){showErr("Encara s'estan carregant les dades. Espera un moment.");return}
     var r=interpret(inC.value), pq=r.p;
+    // casa sense carrer triada de la llista: no cal número
+    if(chosen && chosen.sc && inC.value!==valor(chosen)) chosen=null;
+    var sense=chosen&&chosen.sc;
+    if(sense){ r.badMuni=null; pq={street:chosen.n,num:0}; }
     if(!pq.street.trim()){showErr("Escriu l'adreça, per exemple: carrer Muntaner, 240.");inC.focus();return}
     if(r.badMuni){showErr("No trobem el municipi «"+esc(r.badMuni)+"». <b>Aquest cercador només funciona per a Catalunya.</b>");inC.focus();return}
     if(!chosen){ var s=r.list; if(!s.length){showErr("<b>No trobem aquesta adreça a Catalunya.</b> Revisa com l'has escrit i afegeix el municipi al final.");inC.focus();return}
-      if(s.length===1||key(s[0].n)===key(alies(r.street))) chosen=s[0]; }
+      if(s.length===1||key(s[0].n)===key(alies(r.street))) chosen=s[0];
+      if(chosen&&chosen.sc){ sense=true; pq={street:chosen.n,num:0}; } }
     if(!chosen){showErr("Tria el carrer de la llista que apareix mentre escrius.");inC.focus();render();return}
-    var n=pq.num;
-    if(!n){showErr("Afegeix el número del portal, per exemple: "+esc(chosen.n)+", 12.");inC.focus();return}
+    var n=sense?0:pq.num;
+    if(!n&&!sense){showErr("Afegeix el número del portal, per exemple: "+esc(chosen.n)+", 12.");inC.focus();return}
     var l=inicial(inG.value);
     if(!l){showErr("Escriu el teu primer cognom. Només en farem servir la primera lletra.");inG.focus();return}
     var s0=chosen, code=muniOf(s0).code;
@@ -378,7 +387,7 @@ body.amb-res #form{display:none}
         return showNone(code,s0,n,parts,l,true);
       }
       var m=mesaFor(d,sec,l); if(!m){showErr("No trobem la mesa per a aquesta secció.");return}
-      card(code,sec,m,'<p class="where">Per a <b>'+esc(s0.n)+", "+n+(code!=="019"?" ("+esc(muniOf(s0).name)+")":"")+'</b>'+(m[0]==="U"?'':' · cognom per <b>'+esc(l)+'</b>')+'</p>',true);
+      card(code,sec,m,'<p class="where">Per a <b>'+esc(s0.n)+(s0.sc?"":", "+n)+(code!=="019"?" ("+esc(muniOf(s0).name)+")":"")+'</b>'+(m[0]==="U"?'':' · cognom per <b>'+esc(l)+'</b>')+'</p>',true);
     }).catch(function(){showErr("No s'han pogut carregar les dades d'aquest municipi. Torna-ho a provar.")});
   });
 
@@ -428,7 +437,7 @@ body.amb-res #form{display:none}
     var d=M[code];
     var opts=v.map(function(sec){var m=mesaFor(d,sec,l);if(!m)return "";var loc=d.locals[m[3]];
       return '<li>Secció '+esc(secNum(sec))+(m[0]==="U"?"":" · Mesa "+esc(m[0]))+': <b>'+esc(loc[0])+'</b>, '+esc(loc[1])+'</li>'}).join("");
-    res.innerHTML='<p class="where">Per a <b>'+esc(s0.n)+", "+n+(code!=="019"?" ("+esc(muniName(code))+")":"")+'</b></p>'+
+    res.innerHTML='<p class="where">Per a <b>'+esc(s0.n)+(s0.sc?"":", "+n)+(code!=="019"?" ("+esc(muniName(code))+")":"")+'</b></p>'+
       '<div class="err on" style="margin:0">'+(partida?"Aquesta secció està partida en zones i no podem saber amb seguretat quina et toca. Consulta la teva targeta censal.":"No trobem aquest número exacte al cens electoral (pot ser que no hi visqui ningú censat).")+'</div>'+
       (opts?'<div class="alt">'+(partida?"Les opcions possibles són:":"Els portals més propers del mateix costat voten a:")+'<ul>'+opts+'</ul></div>':'')+
       '<div class="acts"><button class="a p" type="button" id="again">Nova cerca</button></div>';

@@ -204,7 +204,7 @@ def main():
                 nom, adr, zona, cp, pob = separar(brut)
                 locals_[mk][f["codi"]] = [titol(nom), adreca(adr), cp]
 
-    noms = {}
+    noms, nuclis = {}, {}
     trams = collections.defaultdict(lambda: collections.defaultdict(set))
     dates = set()
     for pr in per_prov:
@@ -224,7 +224,15 @@ def main():
             if k not in seccions.get(mk, {}):
                 k2 = clau(mk, d, s, 0)
                 k = k2 if k2 in seccions.get(mk, {}) else k
-            trams[mk][l[20:25]].add((int(l[48:52]), int(l[53:57]), int(l[47]), k))
+            via = l[20:25]
+            if via == "00000":
+                # Sense carrer (masies, cases i finques disperses): l'INE hi posa una pseudovia
+                # amb codi propi [25:30] i el nom de la casa [195:245]; [110:135] és el nucli
+                via = "S" + l[25:30]
+                if (mk, via) not in noms:
+                    noms[(mk, via)] = punt_volat(nom_via("", l[195:245].strip())) or nom_municipi(l[110:135].strip())
+                    nuclis[(mk, via)] = nom_municipi(l[110:135].strip())
+            trams[mk][via].add((int(l[48:52]), int(l[53:57]), int(l[47]), k))
 
     os.makedirs(os.path.join(SORTIDA, "m"), exist_ok=True)
     for old in glob.glob(os.path.join(SORTIDA, "m", "*.json")):
@@ -232,16 +240,25 @@ def main():
     codis = sorted(munis, key=lambda c: (c != "019", norm_txt(munis[c])))
     index_munis, n_carrers, sense_meses = [], 0, collections.Counter()
     for mun in codis:
-        carrers = sorted(([noms.get((mun, cv), "?"), sorted(ts)] for cv, ts in trams[mun].items()),
-                         key=lambda c: c[0])
-        index_munis.append([mun, munis[mun], [c[0] for c in carrers]])
+        carrers = [[noms.get((mun, cv), "?"), sorted(ts), cv] for cv, ts in trams[mun].items()]
+        # sense carrer = pseudovia de l'INE i tots els trams sense número
+        for c in carrers:
+            c.append(c[2].startswith("S") and all(t[0] == 0 and t[1] == 0 for t in c[1]))
+        # noms repetits de cases sense carrer: s'hi afegeix el nucli
+        rep = collections.Counter(c[0] for c in carrers if c[3])
+        for c in carrers:
+            nu = nuclis.get((mun, c[2]), "")
+            if c[3] and rep[c[0]] > 1 and nu and norm_txt(nu) != norm_txt(munis[mun]):
+                c[0] = f"{c[0]} ({nu})"
+        carrers.sort(key=lambda c: (c[0], c[2]))
+        index_munis.append([mun, munis[mun], [c[0] for c in carrers], [i for i, c in enumerate(carrers) if c[3]]])
         n_carrers += len(carrers)
         for c in carrers:
             for t in c[1]:
                 if t[3] not in seccions[mun]:
                     sense_meses[mun] += 1
         dades = {"locals": locals_[mun], "seccions": seccions[mun],
-                 "carrers": [[n, [list(t) for t in ts]] for n, ts in carrers]}
+                 "carrers": [[n, [list(t) for t in ts]] for n, ts, *_ in carrers]}
         if mun == "019":
             dades["districtes"] = {str(k): v for k, v in DISTRICTES.items()}
         json.dump(dades, open(os.path.join(SORTIDA, "m", f"{mun}.json"), "w", encoding="utf-8"),
