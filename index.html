@@ -127,13 +127,58 @@ body.amb-res #form{display:none}
   main{margin-top:-80px}
   .card{padding:30px 28px 26px}
 }
+
+/* ===== Efectes i degradats ===== */
+/* 1. Hero: el degradat es mou molt lentament i hi ha una llum suau que passa */
+.hero{background-size:100% 100%,180% 180%;animation:heroMou 16s ease-in-out infinite alternate}
+@keyframes heroMou{from{background-position:0 0,0% 0%}to{background-position:0 0,100% 100%}}
+.hero::after{content:"";position:absolute;inset:-40%;background:radial-gradient(closest-side,rgba(255,255,255,.22),transparent 70%);width:60%;height:60%;animation:llum 14s ease-in-out infinite alternate;pointer-events:none}
+@keyframes llum{from{transform:translate(-10%,10%)}to{transform:translate(120%,40%)}}
+/* 2. Urna: flota i la papereta hi entra en carregar */
+.urna{animation:flota 6s ease-in-out infinite}
+@keyframes flota{0%,100%{transform:rotate(-10deg) translateY(0)}50%{transform:rotate(-8deg) translateY(-8px)}}
+.urna .pap{animation:papereta 2.4s .4s cubic-bezier(.45,0,.3,1) both}
+@keyframes papereta{from{transform:translateY(-30px);opacity:0}35%{opacity:1}to{transform:none;opacity:1}}
+/* 3. Entrada escalonada: logo, títol i targeta */
+.logoj,.hero h1{animation:up .6s cubic-bezier(.2,.8,.2,1) both}
+.hero h1{animation-delay:.12s}
+main .card,.wrap .card{animation:up .6s .22s cubic-bezier(.2,.8,.2,1) both}
+/* 4. Botó: halo turquesa que respira + reflex de llum que hi passa */
+.btn{position:relative;overflow:hidden;box-shadow:0 10px 24px -10px rgba(20,20,19,.6),0 0 0 0 rgba(0,189,182,.55);animation:respira 2.8s ease-in-out infinite;transition:transform .15s,box-shadow .2s}
+@keyframes respira{0%,100%{box-shadow:0 10px 24px -10px rgba(20,20,19,.6),0 0 0 0 rgba(0,189,182,.0),0 0 18px 0 rgba(0,158,155,.3)}50%{box-shadow:0 10px 24px -10px rgba(20,20,19,.6),0 0 0 6px rgba(0,158,155,.2),0 0 30px 6px rgba(0,158,155,.5)}}
+.btn::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(127,230,222,.55),transparent);transform:skewX(-18deg);animation:reflex 4.5s 1.2s ease-in-out infinite}
+@keyframes reflex{0%{left:-60%}35%,100%{left:130%}}
+.btn:hover{transform:translateY(-2px)}
+/* Botó turquesa */
+.btn{background:linear-gradient(165deg,#009E9B 0%,var(--brand) 55%,#45DDD3 100%);color:#fff;text-shadow:0 1px 8px rgba(0,90,86,.45)}
+.btn::after{background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent)}
+/* 5. Resultat: secció i mesa fan un 'pop' i el col·legi entra després */
+#res.on .vot .t{animation:pop .5s cubic-bezier(.3,1.5,.5,1) both}
+#res.on .vot .t.m{animation-delay:.12s}
+#res.on .local,#res.on .acts{animation:up .5s .25s cubic-bezier(.2,.8,.2,1) both}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+
+/* Tots els botons amb el degradat del hero i lletra blanca */
+:root{--grad:linear-gradient(165deg,#009E9B 0%,var(--brand) 55%,#45DDD3 100%)}
+.a.p,.a.s{background:var(--grad);border:0;color:#fff;text-shadow:0 1px 6px rgba(0,90,86,.45);box-shadow:0 8px 18px -10px rgba(0,110,106,.7)}
+.a.p svg,.a.s svg{filter:drop-shadow(0 1px 3px rgba(0,90,86,.4))}
+/* Resultat amb volum (3D) */
+/* Resultat: degradat i ombra suau, com si les peces suressin */
+.vot{background:linear-gradient(180deg,#F2FCFB 0%,var(--brand-xl) 100%)}
+.vot .t{box-shadow:0 16px 28px -14px rgba(0,90,86,.45)}
+.vot .t.m{background:var(--grad);color:#fff;text-shadow:0 2px 10px rgba(0,90,86,.45);box-shadow:0 18px 30px -12px rgba(0,110,106,.6)}
+#res.on .vot .t{animation:pop .5s cubic-bezier(.3,1.5,.5,1) both,sura 5s 1s ease-in-out infinite}
+#res.on .vot .t.m{animation-delay:.12s,1.6s}
+@keyframes sura{0%,100%{transform:none}50%{transform:translateY(-4px)}}
+/* Qui té activat 'reduir moviment' al mòbil no veu cap animació */
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
 <header class="hero">
   <svg class="urna" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M24 26V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v19" fill="currentColor" fill-opacity=".35"/>
-    <path d="M28 13l4 4 6-7"/>
+<g class="pap">    <path d="M24 26V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v19" fill="currentColor" fill-opacity=".35"/>
+    <path d="M28 13l4 4 6-7"/></g>
     <path d="M8 26h48l-3 32a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2z" fill="currentColor" fill-opacity=".18"/>
     <path d="M20 26h24" stroke-width="3.4"/>
   </svg>
