@@ -150,7 +150,7 @@ body.amb-res #form{display:none}
     <form id="f" autocomplete="off" novalidate>
       <div class="field">
         <label for="carrer">Adreça</label>
-        <input class="inp" id="carrer" type="text" inputmode="search" enterkeyhint="next" placeholder="Ex.: Muntaner 240, Sabadell" autocapitalize="words" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sug" aria-autocomplete="list">
+        <input class="inp" id="carrer" type="text" inputmode="search" enterkeyhint="next" placeholder="Ex.: Major de Sarrià 50" autocapitalize="words" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sug" aria-autocomplete="list">
         <ul class="sug" id="sug" role="listbox"></ul>
       </div>
       <div class="field">
@@ -226,16 +226,23 @@ body.amb-res #form{display:none}
       if(t2!==t&&t2) return findMuni(t2,exact);
     }
     if(out.length||exact) return out;
-    if(t.length<3) return [];
+    if(t.length<4) return [];
     var tc=t.replace(/ /g,""), kc=k.replace(/ /g,"");
     MUNIS.forEach(function(m,mi){ if(m.n.indexOf(t)===0||(k&&m.k.indexOf(k)===0)||m.c.indexOf(tc)===0||(kc&&m.ck.indexOf(kc)===0)) out.push(mi) });
     return out;
   }
   // "Carrer Muntaner, 240" -> {street, num, muni}
+  // Paraules que van després del número i no són el municipi: bis, escala, pis, porta...
+  var DESPRES=/^(?:bis|ter|esc(?:ala)?\.?|escalera|pis|piso|planta|porta|puerta|bxs?\.?|baixos|bajos?|atic|àtic|atico|ático|pral\.?|principal|entl?\.?|entresol|dreta|esquerra|dr\.?|esq\.?|izq(?:da)?\.?|izquierda|dcha\.?|derecha|\d{1,2}\s?(?:r|n|t|a|o|º|ª|er|on|rt|é|e)?\.?)(?=[\s,]|$)/i;
+  function treuDespres(t){ var r=t, ant; do{ ant=r; r=r.replace(DESPRES,"").replace(/^[\s,º°ª.\-]+/,""); }while(r!==ant&&r); return r; }
   function parse(q){
     q=(q||"").replace(/([a-zA-ZÀ-ÿ])(\d)/g,"$1 $2").replace(/\b\d{5}\b/g," ").replace(/\s+/g," ").replace(/ ,/g,",");
-    var m=q.match(/^(.*?)[\s,]+(?:n[ºo°.]?\s*)?(\d{1,4})(?:\s?[a-zA-Z](?![a-zA-Z]))?(?:[\s,]+(.*))?$/);
-    if(m && m[1].trim()) return {street:m[1].replace(/[\s,]+$/,""),num:parseInt(m[2],10),muni:(m[3]||"").trim()||null};
+    // sense número: s/n, s.n., sn, s n
+    var sn=q.match(/^(.*?)[\s,]+(?:s\s?\/\s?n|s\.\s?n\.?|sn|s n|sin n[uú]mero|sense n[uú]mero)(?=[\s,.]|$)[\s,.]*(.*)$/i);
+    if(sn && sn[1].trim()) return {street:sn[1].replace(/[\s,]+$/,""),num:0,sn:true,lletra:"",muni:treuDespres((sn[2]||"").trim())||null};
+    var m=q.match(/^(.*?)[\s,]+(?:n[ºo°.]?\s*)?(\d{1,4})(?:\s*[-–]\s*(\d{1,4}))?(?:\s?([a-zA-Z])(?![a-zA-ZÀ-ÿ']))?(?:[\s,]+(.*))?$/);
+    if(m && m[1].trim()) return {street:m[1].replace(/[\s,]+$/,""),num:parseInt(m[2],10),num2:m[3]?parseInt(m[3],10):null,
+      lletra:(m[4]||"").toUpperCase(),muni:treuDespres((m[5]||"").trim())||null};
     var c=q.indexOf(",");
     if(c>0 && q.slice(c+1).trim()) return {street:q.slice(0,c).trim(),num:null,muni:q.slice(c+1).trim()};
     return {street:q.replace(/[\s,]+$/,""),num:null,muni:null};
@@ -256,7 +263,7 @@ body.amb-res #form{display:none}
       if(!ok) continue;
       out.push([(s.k.indexOf(k)===0?0:(s.full.indexOf(f)===0?1:2))+(tw&&s.full.indexOf(tw)!==0?3:0),s]);
     }
-    out.sort(function(a,b){return (a[1].mi!==0)-(b[1].mi!==0)||a[0]-b[0]||a[1].k.length-b[1].k.length||a[1].k.localeCompare(b[1].k)||a[1].mi-b[1].mi});
+    out.sort(function(a,b){return (a[1].sc-b[1].sc)||(a[1].mi!==0)-(b[1].mi!==0)||a[0]-b[0]||a[1].k.length-b[1].k.length||a[1].k.localeCompare(b[1].k)||a[1].mi-b[1].mi});
     return out.slice(0,8).map(function(x){return x[1]});
   }
   // Interpreta el text: carrer, número i, si n'hi ha, municipi
@@ -291,13 +298,13 @@ body.amb-res #form{display:none}
     var mu=muniOf(s); if(s.sc) return "Casa o finca sense carrer · "+mu.name;
     if(mu.code!=="019") return mu.name;
     var t=trams(s), ds=[]; if(!t) return "Barcelona";
-    if(num) seccions(t,num).forEach(function(k){var d=dName("019",k);if(ds.indexOf(d)<0)ds.push(d)});
+    if(typeof num==="number"&&num>0) seccions(t,num).forEach(function(k){var d=dName("019",k);if(ds.indexOf(d)<0)ds.push(d)});
     if(!ds.length) t.forEach(function(r){var d=dName("019",r[3]);if(ds.indexOf(d)<0)ds.push(d)});
     return "Barcelona · "+(ds.length>2?ds.slice(0,2).join(" · ")+"…":ds.join(" · "));
   }
   function render(){
     if(!IDX) return;
-    var r=interpret(inC.value); curNum=r.p.num; list=r.list; act=-1;
+    var r=interpret(inC.value); curNum=r.p.sn?"s/n":r.p.num; list=r.list; act=-1;
     if(!r.p.street.trim()){close();return}
     if(r.badMuni){sug.innerHTML='<li class="none">No trobem el municipi «'+esc(r.badMuni)+'» a Catalunya.</li>';open();return}
     if(!list.length){sug.innerHTML='<li class="none">No trobem aquest carrer a Catalunya.</li>';open();return}
@@ -316,7 +323,7 @@ body.amb-res #form{display:none}
   inC.addEventListener("input",function(){
     var p=parse(inC.value);
     if(chosen && chosen.sc && inC.value===valor(chosen)) return;
-    if(chosen && norm(p.street)===norm(chosen.n)){ curNum=p.num; inC.classList.toggle("ok",!!p.num); if(!p.num) render(); else close(); return; }
+    if(chosen && norm(p.street)===norm(chosen.n)){ curNum=p.sn?"s/n":p.num; inC.classList.toggle("ok",!!curNum); if(!curNum) render(); else close(); return; }
     chosen=null;inC.classList.remove("ok");render();
   });
   inC.addEventListener("focus",function(){if(inC.value&&!chosen) render()});
@@ -340,7 +347,19 @@ body.amb-res #form{display:none}
     return l;
   }
   function inRange(l,a,b){ if(l==="Ñ") l="N\uFFFF"; return l>=a && l<=b }
-  function seccions(t,n){
+  // Portal = número + lletra opcional (79 < 79 A < 79 B < 80). Els trams poden començar o acabar en lletra.
+  function cmpP(n1,l1,n2,l2){ return n1-n2 || (l1<l2?-1:(l1>l2?1:0)) }
+  function seccions(t,n,lt){
+    lt=lt||""; var odd=n%2===1, hits=[];
+    for(var i=0;i<t.length;i++){var r=t[i];
+      if(cmpP(n,lt,r[0],r[4]||"")>=0&&cmpP(n,lt,r[1],r[5]||"")<=0&&(r[2]===0||(r[2]===1&&odd)||(r[2]===2&&!odd))&&hits.indexOf(r[3])<0) hits.push(r[3]);}
+    // amb una lletra que el cens no té, es busca el número sol
+    if(!hits.length&&lt) return seccions(t,n,"");
+    // número que al cens només surt amb lletra (només hi ha el 25 A): es busca sense mirar lletres
+    if(!hits.length&&lt!==null) return seccionsSenseLletra(t,n);
+    return hits;
+  }
+  function seccionsSenseLletra(t,n){
     var odd=n%2===1, hits=[];
     for(var i=0;i<t.length;i++){var r=t[i];
       if(n>=r[0]&&n<=r[1]&&(r[2]===0||(r[2]===1&&odd)||(r[2]===2&&!odd))&&hits.indexOf(r[3])<0) hits.push(r[3]);}
@@ -348,7 +367,7 @@ body.amb-res #form{display:none}
   }
   function veins(t,n){ // seccions dels trams més propers, mateixa paritat
     var odd=n%2===1, best={};
-    t.forEach(function(r){ if(r[2]!==0 && (r[2]===1)!==odd) return;
+    t.forEach(function(r){ if(n>0 && r[2]!==0 && (r[2]===1)!==odd) return;
       var d=n<r[0]?r[0]-n:(n>r[1]?n-r[1]:0); if(best[r[3]]===undefined||d<best[r[3]]) best[r[3]]=d;});
     return Object.keys(best).sort(function(a,b){return best[a]-best[b]}).slice(0,3);
   }
@@ -356,6 +375,8 @@ body.amb-res #form{display:none}
     var ms=d.seccions[sec]; if(!ms) return null;
     if(ms.length===1) return ms[0];
     for(var i=0;i<ms.length;i++) if(inRange(l,ms[i][1],ms[i][2])) return ms[i];
+    // Ñ: si cap mesa la inclou (p. ex. G-N i O-Z), compta com a N
+    if(l==="Ñ") return mesaFor(d,sec,"N");
     return null;
   }
 
@@ -370,24 +391,36 @@ body.amb-res #form{display:none}
     if(!pq.street.trim()){showErr("Escriu l'adreça, per exemple: carrer Muntaner, 240.");inC.focus();return}
     if(r.badMuni){showErr("No trobem el municipi «"+esc(r.badMuni)+"». <b>Aquest cercador només funciona per a Catalunya.</b>");inC.focus();return}
     if(!chosen){ var s=r.list; if(!s.length){showErr("<b>No trobem aquesta adreça a Catalunya.</b> Revisa com l'has escrit i afegeix el municipi al final.");inC.focus();return}
-      if(s.length===1||key(s[0].n)===key(alies(r.street))) chosen=s[0];
+      // nom exacte: es tria sol, tret que sigui una casa sense carrer i hi hagi altres opcions (llavors tria la persona)
+      var ex=s.filter(function(x){return x.full===norm(alies(r.street))});
+      if(s.length===1) chosen=s[0];
+      else if(ex.length===1){ if(!ex[0].sc) chosen=ex[0]; }
+      else if(key(s[0].n)===key(alies(r.street))) chosen=s[0];
       if(chosen&&chosen.sc){ sense=true; pq={street:chosen.n,num:0}; } }
     if(!chosen){showErr("Tria el carrer de la llista que apareix mentre escrius.");inC.focus();render();return}
-    var n=sense?0:pq.num;
-    if(!n&&!sense){showErr("Afegeix el número del portal, per exemple: "+esc(chosen.n)+", 12.");inC.focus();return}
+    var n=(sense||pq.sn)?0:pq.num, lt=sense?"":(pq.lletra||""), n2=sense?null:(pq.num2||null);
     var l=inicial(inG.value);
-    if(!l){showErr("Escriu el teu primer cognom. Només en farem servir la primera lletra.");inG.focus();return}
     var s0=chosen, code=muniOf(s0).code;
+    function senseNum(){showErr("Afegeix el número del portal, per exemple: "+esc(chosen.n)+", 12.");inC.focus()}
+    if(n==null&&M[code]&&!nomesSN(M[code].carrers[s0.pos][1])){senseNum();return}
+    if(!l){showErr("Escriu el teu primer cognom. Només en farem servir la primera lletra.");inG.focus();return}
     carrega(code).then(function(d){
-      var t=d.carrers[s0.pos][1], hits=seccions(t,n);
-      if(!hits.length) return showNone(code,s0,n,veins(t,n),l);
+      var t=d.carrers[s0.pos][1];
+      // carrer escrit sense número que només té portals sense número
+      if(n==null){ if(!nomesSN(t)) return senseNum(); n=0; }
+      var hits=seccions(t,n,lt);
+      // 240-242: també el segon número
+      if(n2) seccions(t,n2).forEach(function(k){if(hits.indexOf(k)<0)hits.push(k)});
+      var adr=esc(s0.n)+(s0.sc?"":(n===0?", s/n":", "+n+(lt?" "+lt:"")+(n2?"-"+n2:"")));
+      if(!hits.length) return showNone(code,adr,veins(t,n),l);
+      if(hits.length>1) return showNone(code,adr,hits,l,"multi");
       var sec=hits[0];
       if(!d.seccions[sec]){
         var parts=Object.keys(d.seccions).filter(function(k){return k.indexOf(sec+"-")===0});
-        return showNone(code,s0,n,parts,l,true);
+        return showNone(code,adr,parts,l,true);
       }
       var m=mesaFor(d,sec,l); if(!m){showErr("No trobem la mesa per a aquesta secció.");return}
-      card(code,sec,m,'<p class="where">Per a <b>'+esc(s0.n)+(s0.sc?"":", "+n)+(code!=="019"?" ("+esc(muniOf(s0).name)+")":"")+'</b>'+(m[0]==="U"?'':' · cognom per <b>'+esc(l)+'</b>')+'</p>',true);
+      card(code,sec,m,'<p class="where">Per a <b>'+adr+(code!=="019"?" ("+esc(muniOf(s0).name)+")":"")+'</b>'+(m[0]==="U"?'':' · cognom per <b>'+esc(l)+'</b>')+'</p>',true);
     }).catch(function(){showErr("No s'han pogut carregar les dades d'aquest municipi. Torna-ho a provar.")});
   });
 
@@ -417,7 +450,7 @@ body.amb-res #form{display:none}
         (withQr?'<button class="a s" type="button" id="share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>Comparteix</button>'+shareBox(link(code,sec,m),shareTxt(code,sec,m)):'')+
       '</div>'+
       '<button class="lnk" type="button" id="again">'+(withQr?'Nova cerca':'Busca una altra adreça')+'</button>'+
-      '<p class="note">Informació basada en l\'adreça. No es recullen dades personals.</p>';
+      '<p class="note">Cerca feta per adreça censal. En cas de dubte, consulta la teva targeta censal o fonts oficials.<br>No es recullen dades personals.</p>';
     reveal();
     if(withQr) wireShare(link(code,sec,m),shareTxt(code,sec,m));
   }
@@ -433,14 +466,18 @@ body.amb-res #form{display:none}
       }).catch(function(){});
     }catch(e){}
   }
-  function showNone(code,s0,n,v,l,partida){
-    var d=M[code];
-    var opts=v.map(function(sec){var m=mesaFor(d,sec,l);if(!m)return "";var loc=d.locals[m[3]];
+  function nomesSN(t){ return t.length>0 && t.every(function(r){return r[0]===0&&r[1]===0}) }
+  function showNone(code,adr,v,l,partida){
+    var d=M[code], multi=partida==="multi";
+    // una secció partida en subseccions: totes les parts
+    var v2=[]; v.forEach(function(sec){ if(d.seccions[sec]) v2.push(sec); else Object.keys(d.seccions).forEach(function(k){if(k.indexOf(sec+"-")===0&&v2.indexOf(k)<0)v2.push(k)}) });
+    var opts=v2.map(function(sec){var m=mesaFor(d,sec,l);if(!m)return "";var loc=d.locals[m[3]];
       return '<li>Secció '+esc(secNum(sec))+(m[0]==="U"?"":" · Mesa "+esc(m[0]))+': <b>'+esc(loc[0])+'</b>, '+esc(loc[1])+'</li>'}).join("");
-    res.innerHTML='<p class="where">Per a <b>'+esc(s0.n)+(s0.sc?"":", "+n)+(code!=="019"?" ("+esc(muniName(code))+")":"")+'</b></p>'+
-      '<div class="err on" style="margin:0">'+(partida?"Aquesta secció està partida en zones i no podem saber amb seguretat quina et toca. Consulta la teva targeta censal.":"No trobem aquest número exacte al cens electoral (pot ser que no hi visqui ningú censat).")+'</div>'+
-      (opts?'<div class="alt">'+(partida?"Les opcions possibles són:":"Els portals més propers del mateix costat voten a:")+'<ul>'+opts+'</ul></div>':'')+
-      '<div class="acts"><button class="a p" type="button" id="again">Nova cerca</button></div>';
+    res.innerHTML='<p class="where">Per a <b>'+adr+(code!=="019"?" ("+esc(muniName(code))+")":"")+'</b></p>'+
+      '<div class="err on" style="margin:0">'+(multi?"Al cens electoral aquest portal surt en més d'una secció i no podem saber amb seguretat quina et toca. Consulta la teva targeta censal.":partida?"Aquesta secció està partida en zones i no podem saber amb seguretat quina et toca. Consulta la teva targeta censal.":"No trobem aquest número exacte al cens electoral (pot ser que no hi visqui ningú censat).")+'</div>'+
+      (opts?'<div class="alt">'+(multi||partida?"Les opcions possibles són:":"Els portals més propers del mateix costat voten a:")+'<ul>'+opts+'</ul></div>':'')+
+      '<div class="acts"><button class="a p" type="button" id="again">Nova cerca</button></div>'+
+      '<p class="note">Cerca feta per adreça censal. En cas de dubte, consulta la teva targeta censal o fonts oficials.<br>No es recullen dades personals.</p>';
     reveal();
   }
   function shareBox(url,txt){
@@ -472,7 +509,7 @@ body.amb-res #form{display:none}
   }
   function reveal(){
     document.body.classList.add("amb-res"); res.classList.add("on");
-    $("again").addEventListener("click",function(){if(location.search)history.replaceState(null,"",location.pathname);res.classList.remove("on");document.body.classList.remove("amb-res");inC.value="";chosen=null;inC.classList.remove("ok");inC.placeholder="Ex.: Muntaner 240, Sabadell";inG.value="";inC.focus();window.scrollTo({top:0,behavior:"smooth"})});
+    $("again").addEventListener("click",function(){if(location.search)history.replaceState(null,"",location.pathname);res.classList.remove("on");document.body.classList.remove("amb-res");inC.value="";chosen=null;inC.classList.remove("ok");inC.placeholder="Ex.: Major de Sarrià 50";inG.value="";inC.focus();window.scrollTo({top:0,behavior:"smooth"})});
     window.scrollTo({top:0,behavior:"smooth"});
   }
 })();

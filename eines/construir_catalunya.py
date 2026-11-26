@@ -232,7 +232,13 @@ def main():
                 if (mk, via) not in noms:
                     noms[(mk, via)] = punt_volat(nom_via("", l[195:245].strip())) or nom_municipi(l[110:135].strip())
                     nuclis[(mk, via)] = nom_municipi(l[110:135].strip())
-            trams[mk][via].add((int(l[48:52]), int(l[53:57]), int(l[47]), k))
+            if (mk, via) not in nuclis:
+                nuclis[(mk, via)] = nom_municipi(l[110:135].strip())
+            # lletra del portal (79 / 79 B); 'S' amb número 0 vol dir sense número
+            ini, fi = int(l[48:52]), int(l[53:57])
+            li = "" if ini == 0 else l[52].strip()
+            lf = "" if fi == 0 else l[57].strip()
+            trams[mk][via].add((ini, fi, int(l[47]), k, li, lf))
 
     os.makedirs(os.path.join(SORTIDA, "m"), exist_ok=True)
     for old in glob.glob(os.path.join(SORTIDA, "m", "*.json")):
@@ -245,11 +251,17 @@ def main():
         for c in carrers:
             c.append(c[2].startswith("S") and all(t[0] == 0 and t[1] == 0 for t in c[1]))
         # noms repetits de cases sense carrer: s'hi afegeix el nucli
-        rep = collections.Counter(c[0] for c in carrers if c[3])
+        # noms repetits dins el municipi (Carrer de la Font d'Àger i d'Agulló): s'hi afegeix el nucli
+        grups = collections.defaultdict(list)
         for c in carrers:
-            nu = nuclis.get((mun, c[2]), "")
-            if c[3] and rep[c[0]] > 1 and nu and norm_txt(nu) != norm_txt(munis[mun]):
-                c[0] = f"{c[0]} ({nu})"
+            grups[c[0]].append(c)
+        for nom, cs in grups.items():
+            # l'INE escriu els nuclis sense accents: si el nucli és el poble principal, nom del municipi
+            nus = [munis[mun] if norm_txt(nuclis.get((mun, c[2]), "")) == norm_txt(munis[mun])
+                   else nuclis.get((mun, c[2]), "") for c in cs]
+            if len(cs) > 1 and all(nus) and len({norm_txt(x) for x in nus}) > 1:
+                for c, nu in zip(cs, nus):
+                    c[0] = f"{nom} ({nu})"
         carrers.sort(key=lambda c: (c[0], c[2]))
         index_munis.append([mun, munis[mun], [c[0] for c in carrers], [i for i, c in enumerate(carrers) if c[3]]])
         n_carrers += len(carrers)
@@ -258,7 +270,8 @@ def main():
                 if t[3] not in seccions[mun]:
                     sense_meses[mun] += 1
         dades = {"locals": locals_[mun], "seccions": seccions[mun],
-                 "carrers": [[n, [list(t) for t in ts]] for n, ts, *_ in carrers]}
+                 "carrers": [[n, [list(t[:4]) + ([t[4], t[5]] if t[4] or t[5] else []) for t in ts]]
+                             for n, ts, *_ in carrers]}
         if mun == "019":
             dades["districtes"] = {str(k): v for k, v in DISTRICTES.items()}
         json.dump(dades, open(os.path.join(SORTIDA, "m", f"{mun}.json"), "w", encoding="utf-8"),
