@@ -232,13 +232,14 @@ def main():
                 if (mk, via) not in noms:
                     noms[(mk, via)] = punt_volat(nom_via("", l[195:245].strip())) or nom_municipi(l[110:135].strip())
                     nuclis[(mk, via)] = nom_municipi(l[110:135].strip())
-            if (mk, via) not in nuclis:
-                nuclis[(mk, via)] = nom_municipi(l[110:135].strip())
+            # un mateix codi de carrer pot ser a dos nuclis (Carrer Uruguai de Mira-sol i de Valldoreix):
+            # es guarden per separat
+            nu = l[110:135].strip()
             # lletra del portal (79 / 79 B); 'S' amb número 0 vol dir sense número
             ini, fi = int(l[48:52]), int(l[53:57])
             li = "" if ini == 0 else l[52].strip()
             lf = "" if fi == 0 else l[57].strip()
-            trams[mk][via].add((ini, fi, int(l[47]), k, li, lf))
+            trams[mk][(via, nu)].add((ini, fi, int(l[47]), k, li, lf))
 
     os.makedirs(os.path.join(SORTIDA, "m"), exist_ok=True)
     for old in glob.glob(os.path.join(SORTIDA, "m", "*.json")):
@@ -246,23 +247,45 @@ def main():
     codis = sorted(munis, key=lambda c: (c != "019", norm_txt(munis[c])))
     index_munis, n_carrers, sense_meses = [], 0, collections.Counter()
     for mun in codis:
-        carrers = [[noms.get((mun, cv), "?"), sorted(ts), cv] for cv, ts in trams[mun].items()]
+        # Un carrer llarg que passa per dos nuclis es queda junt. Només se separa per nuclis quan
+        # el mateix número surt a més d'un nucli (Carrer Uruguai 7 de Mira-sol i de Valldoreix).
+        per_via = collections.defaultdict(dict)
+        for (via, nu), ts in trams[mun].items():
+            per_via[via][nu] = ts
+        def es_solapen(ts1, ts2):
+            for a in ts1:
+                for b in ts2:
+                    if (a[2] == 0 or b[2] == 0 or a[2] == b[2]) and max(a[0], b[0]) <= min(a[1], b[1]) \
+                            and not (a[0] == 0 and b[0] == 0):
+                        return True
+            return False
+        agrupats = {}
+        for via, pn in per_via.items():
+            nus = list(pn)
+            if len(nus) > 1 and any(es_solapen(pn[x], pn[y]) for i, x in enumerate(nus) for y in nus[i + 1:]):
+                for nu, ts in pn.items():
+                    agrupats[(via, nu)] = ts
+            else:
+                agrupats[(via, nus[0] if len(nus) == 1 else "")] = set().union(*pn.values())
+        carrers = [[noms.get((mun, cv[0]), "?"), sorted(ts), cv] for cv, ts in agrupats.items()]
         # sense carrer = pseudovia de l'INE i tots els trams sense número
         for c in carrers:
-            c.append(c[2].startswith("S") and all(t[0] == 0 and t[1] == 0 for t in c[1]))
+            c.append(c[2][0].startswith("S") and all(t[0] == 0 and t[1] == 0 for t in c[1]))
         # noms repetits de cases sense carrer: s'hi afegeix el nucli
         # noms repetits dins el municipi (Carrer de la Font d'Àger i d'Agulló): s'hi afegeix el nucli
+        # l'INE escriu els nuclis sense accents: si el nucli és el poble principal, nom del municipi
+        def nom_nucli(c):
+            nu = nom_municipi(c[2][1]) if c[2][1] else ""
+            return munis[mun] if norm_txt(nu) == norm_txt(munis[mun]) else nu
         grups = collections.defaultdict(list)
         for c in carrers:
             grups[c[0]].append(c)
         for nom, cs in grups.items():
-            # l'INE escriu els nuclis sense accents: si el nucli és el poble principal, nom del municipi
-            nus = [munis[mun] if norm_txt(nuclis.get((mun, c[2]), "")) == norm_txt(munis[mun])
-                   else nuclis.get((mun, c[2]), "") for c in cs]
+            nus = [nom_nucli(c) for c in cs]
             if len(cs) > 1 and all(nus) and len({norm_txt(x) for x in nus}) > 1:
                 for c, nu in zip(cs, nus):
                     c[0] = f"{nom} ({nu})"
-        carrers.sort(key=lambda c: (c[0], c[2]))
+        carrers.sort(key=lambda c: (c[0], c[2][0], c[2][1]))
         index_munis.append([mun, munis[mun], [c[0] for c in carrers], [i for i, c in enumerate(carrers) if c[3]]])
         n_carrers += len(carrers)
         for c in carrers:
