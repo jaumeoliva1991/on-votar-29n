@@ -18,5 +18,7 @@ Cercador per saber la mesa i el col·legi electoral a partir de l'adreça i del 
    ```
    Això torna a generar `dades.json`. A `eines/locals.json` hi ha els noms i les adreces de locals corregits a mà, que tenen preferència sobre els de l'Excel.
 
+Codi QR: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (MIT, Kazuhiko Arase).
+
 Fonts: INE (Cens Electoral, CC BY 4.0) i llistes oficials de locals i meses.
 Elaborat per Jaume Oliva Sala.
