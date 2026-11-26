@@ -316,12 +316,12 @@ footer .by{opacity:.85}
       '<div class="local"><div class="k">Col·legi electoral</div><div class="nom">'+esc(loc[0])+'</div><div class="adr">'+esc(loc[1])+' · '+esc(loc[2])+' Barcelona</div></div>'+
       '<div class="acts">'+
         '<a class="a p" href="'+maps(loc)+'" target="_blank" rel="noopener"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Com arribar-hi</a>'+
-        (withQr?'<button class="a w s" type="button" id="share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>Comparteix amb el votant</button>'+shareBox(link(sec,m)):'')+
+        (withQr?'<button class="a w s" type="button" id="share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>Comparteix amb el votant</button>'+shareBox(link(sec,m),shareTxt(sec,m)):'')+
         '<button class="a w" type="button" id="again">'+(withQr?'Nova cerca':'Busca una altra adreça')+'</button>'+
       '</div>'+
       '<p class="note">Informació orientativa. En cas de dubte, consulta la teva targeta censal o la consulta oficial.</p>';
     reveal();
-    if(withQr) wireShare(link(sec,m));
+    if(withQr) wireShare(link(sec,m),shareTxt(sec,m));
   }
   // Obertura des del QR: ?s=5-10&m=B
   function fromUrl(){
@@ -343,25 +343,29 @@ footer .by{opacity:.85}
       '<div class="acts"><button class="a p" type="button" id="again">Nova cerca</button></div>';
     reveal();
   }
-  function shareBox(url){
+  function shareBox(url,txt){
     var svg=""; try{ var q=qrcode(0,"M"); q.addData(url); q.make(); svg=q.createSvgTag({cellSize:4,margin:0,scalable:true}); }catch(e){}
     return '<div class="sh" id="sh" hidden>'+
       '<div class="tabs" role="tablist"><button type="button" class="tab on" data-t="qr">Codi QR</button><button type="button" class="tab" data-t="ln">Enllaç</button></div>'+
       '<div class="pane" data-p="qr"><div class="qrimg" role="img" aria-label="Codi QR">'+svg+'</div><p>Que el votant l\'escanegi amb la càmera del mòbil.</p></div>'+
       '<div class="pane" data-p="ln" hidden><div class="url">'+esc(url)+'</div>'+
         '<div class="row2">'+(navigator.share?'<button type="button" class="a" id="nat">Envia…</button>':'')+
-        '<a class="a" target="_blank" rel="noopener" href="https://wa.me/?text='+encodeURIComponent("On has d'anar a votar el 29N: "+url)+'">WhatsApp</a>'+
+        '<a class="a" href="https://api.whatsapp.com/send?text='+encodeURIComponent(txt+"\n"+url)+'">WhatsApp</a>'+
         '<button type="button" class="a" id="copy">Copia</button></div></div>'+
     '</div>';
   }
-  function wireShare(url){
+  function shareTxt(sec,m){
+    var loc=D.locals[m[3]];
+    return "🗳️ On has d'anar a votar el 29N:\n"+"Secció "+secNum(sec)+" · "+(m[0]==="U"?"Mesa única":"Mesa "+m[0])+"\n"+loc[0]+"\n"+loc[1]+" ("+loc[2]+" Barcelona)\n";
+  }
+  function wireShare(url,txt){
     var b=$("share"); if(!b) return; var sh=$("sh");
     b.addEventListener("click",function(){sh.hidden=!sh.hidden; if(!sh.hidden) sh.scrollIntoView({behavior:"smooth",block:"center"})});
     [].forEach.call(sh.querySelectorAll(".tab"),function(t){t.addEventListener("click",function(){
       [].forEach.call(sh.querySelectorAll(".tab"),function(x){x.classList.toggle("on",x===t)});
       [].forEach.call(sh.querySelectorAll(".pane"),function(p){p.hidden=p.dataset.p!==t.dataset.t});
     })});
-    var nat=$("nat"); if(nat) nat.addEventListener("click",function(){navigator.share({title:"On voto el 29N?",text:"On has d'anar a votar el 29N:",url:url}).catch(function(){})});
+    var nat=$("nat"); if(nat) nat.addEventListener("click",function(){navigator.share({title:"On voto el 29N?",text:txt,url:url}).catch(function(){})});
     $("copy").addEventListener("click",function(){var c=this;
       (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(function(){c.textContent="Copiat!"},function(){c.textContent="No s'ha pogut copiar"});
       setTimeout(function(){c.textContent="Copia"},2000)});
