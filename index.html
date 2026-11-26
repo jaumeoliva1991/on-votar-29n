@@ -198,7 +198,7 @@ main .card,.wrap .card{animation:up .6s .22s cubic-bezier(.2,.8,.2,1) both}
     <form id="f" autocomplete="off" novalidate>
       <div class="field">
         <label for="carrer">Adreça</label>
-        <input class="inp" id="carrer" type="text" inputmode="search" enterkeyhint="next" placeholder="Ex.: Major de Sarrià 50" autocapitalize="words" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sug" aria-autocomplete="list">
+        <input class="inp" id="carrer" type="text" inputmode="search" enterkeyhint="next" placeholder="Ex.: Muntaner 240" autocapitalize="words" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sug" aria-autocomplete="list">
         <ul class="sug" id="sug" role="listbox"></ul>
       </div>
       <div class="field">
@@ -560,7 +560,7 @@ main .card,.wrap .card{animation:up .6s .22s cubic-bezier(.2,.8,.2,1) both}
   }
   function reveal(){
     document.body.classList.add("amb-res"); res.classList.add("on");
-    $("again").addEventListener("click",function(){if(location.search)history.replaceState(null,"",location.pathname);res.classList.remove("on");document.body.classList.remove("amb-res");inC.value="";chosen=null;inC.classList.remove("ok");inC.placeholder="Ex.: Major de Sarrià 50";inG.value="";inC.focus();window.scrollTo({top:0,behavior:"smooth"})});
+    $("again").addEventListener("click",function(){if(location.search)history.replaceState(null,"",location.pathname);res.classList.remove("on");document.body.classList.remove("amb-res");inC.value="";chosen=null;inC.classList.remove("ok");inC.placeholder="Ex.: Muntaner 240";inG.value="";inC.focus();window.scrollTo({top:0,behavior:"smooth"})});
     window.scrollTo({top:0,behavior:"smooth"});
   }
 })();
