@@ -8,7 +8,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#00BDB6">
 <title>On voto? · 29N</title>
-<meta name="description" content="Eleccions del 29N: troba la teva mesa i el teu col·legi electoral a la província de Barcelona.">
+<meta name="description" content="Eleccions del 29N: troba la teva mesa i el teu col·legi electoral a Catalunya.">
 <style>
 @font-face{font-family:Steradian;src:url(fonts/Steradian-Rg.ttf) format("truetype");font-weight:400;font-display:swap}
 @font-face{font-family:Steradian;src:url(fonts/Steradian-Bd.ttf) format("truetype");font-weight:700;font-display:swap}
@@ -121,7 +121,7 @@ footer .by{opacity:.85}
     <text x="32" y="51" text-anchor="middle" font-family="Steradian, system-ui, sans-serif" font-weight="900" font-size="15.5" letter-spacing="-.4" stroke-width="1.3" fill="currentColor" fill-opacity=".25">29N</text>
   </svg>
   <div class="hero-in">
-    <div class="pill"><span class="dot"></span>Eleccions 29N · Província de Barcelona</div>
+    <div class="pill"><span class="dot"></span>Eleccions 29N · Catalunya</div>
     <h1>On voto?</h1>
     <p class="sub">Troba la teva mesa i el teu col·legi electoral per al 29N en uns segons.</p>
   </div>
@@ -152,7 +152,7 @@ footer .by{opacity:.85}
 </main>
 
 <footer>
-  <div id="font">Eleccions 29N · Província de Barcelona · Dades: INE, Cens Electoral i BOP</div>
+  <div id="font">Eleccions 29N · Catalunya · Dades: INE, Cens Electoral i BOP</div>
   <div class="by">Elaborat per Jaume Oliva Sala</div>
 </footer>
 
@@ -172,7 +172,7 @@ footer .by{opacity:.85}
   function showErr(m){err.innerHTML=m;err.classList.add("on")}
   function clearErr(){err.classList.remove("on")}
 
-  // Dades: índex de carrers de tota la província + un fitxer per municipi
+  // Dades: índex de carrers de tot Catalunya + un fitxer per municipi
   fetch("dades/index.json").then(function(r){return r.json()}).then(function(d){
     IDX=d;
     d.municipis.forEach(function(m,mi){
@@ -257,8 +257,8 @@ footer .by{opacity:.85}
     if(!IDX) return;
     var r=interpret(inC.value); curNum=r.p.num; list=r.list; act=-1;
     if(!r.p.street.trim()){close();return}
-    if(r.badMuni){sug.innerHTML='<li class="none">No trobem el municipi «'+esc(r.badMuni)+'» a la província de Barcelona.</li>';open();return}
-    if(!list.length){sug.innerHTML='<li class="none">No trobem aquest carrer a la província de Barcelona.</li>';open();return}
+    if(r.badMuni){sug.innerHTML='<li class="none">No trobem el municipi «'+esc(r.badMuni)+'» a Catalunya.</li>';open();return}
+    if(!list.length){sug.innerHTML='<li class="none">No trobem aquest carrer a Catalunya.</li>';open();return}
     sug.innerHTML=list.map(function(s,i){return '<li role="option" data-i="'+i+'">'+hilite(s.n,r.street)+(curNum?', '+curNum:'')+'<small>'+esc(lloc(s,curNum))+'</small></li>'}).join("");
     open();
   }
@@ -320,8 +320,8 @@ footer .by{opacity:.85}
     if(!IDX){showErr("Encara s'estan carregant les dades. Espera un moment.");return}
     var r=interpret(inC.value), pq=r.p;
     if(!pq.street.trim()){showErr("Escriu l'adreça, per exemple: carrer Muntaner, 240.");inC.focus();return}
-    if(r.badMuni){showErr("No trobem el municipi «"+esc(r.badMuni)+"». <b>Aquest cercador només funciona per a la província de Barcelona.</b>");inC.focus();return}
-    if(!chosen){ var s=r.list; if(!s.length){showErr("<b>No trobem aquesta adreça a la província de Barcelona.</b> Revisa com l'has escrit; el cercador només funciona per a la província de Barcelona.");inC.focus();return}
+    if(r.badMuni){showErr("No trobem el municipi «"+esc(r.badMuni)+"». <b>Aquest cercador només funciona per a Catalunya.</b>");inC.focus();return}
+    if(!chosen){ var s=r.list; if(!s.length){showErr("<b>No trobem aquesta adreça a Catalunya.</b> Revisa com l'has escrit i afegeix el municipi al final.");inC.focus();return}
       if(s.length===1||key(s[0].n)===key(r.street)) chosen=s[0]; }
     if(!chosen){showErr("Tria el carrer de la llista que apareix mentre escrius.");inC.focus();render();return}
     var n=pq.num;
@@ -376,7 +376,7 @@ footer .by{opacity:.85}
   function fromUrl(){
     try{
       var q=new URLSearchParams(location.search), code=q.get("mu")||"019", sec=q.get("s"), mm=q.get("m");
-      if(!sec||!mm||!/^\d{3}$/.test(code)) return;
+      if(!sec||!mm||!/^(\d{3}|\d{5})$/.test(code)) return;
       carrega(code).then(function(d){
         if(!d.seccions[sec]) return;
         var m=d.seccions[sec].filter(function(x){return x[0]===mm})[0]; if(!m) return;
