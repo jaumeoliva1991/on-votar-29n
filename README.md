@@ -5,7 +5,7 @@ Cercador per saber la mesa i el col·legi electoral a partir de l'adreça i del 
 
 ## Publicar
 - **GitHub Pages**: Settings → Pages → Deploy from branch → `main` / root (cal que el repositori sigui públic al pla gratuït).
-- La web no s'indexa als cercadors gràcies a `robots.txt` i a les etiquetes `noindex` de l'`index.html`.
+- La web es pot indexar als cercadors. L'adreça canònica és https://onvotar29n.junts.cat/.
 
 ## Actualitzar les dades (abans de cada elecció)
 1. Baixa el *Callejero del Censo Electoral* de l'INE (província de Barcelona, el període més recent):
