@@ -51,6 +51,11 @@ def nom_municipi(n):
     return re.sub(r" E ", " e ", titol(n))
 
 
+def punt_volat(t):
+    """'Gal.la' -> 'Gal·la' (el cens escriu la ela geminada amb un punt)"""
+    return re.sub(r"([lL])\.([lL])", r"\1·\2", t)
+
+
 def nom_via(tipus, llarg):
     t = (TIPUS_EXTRA.get(tipus) or TIPUS.get(tipus) or tipus.title()).lower()
     part = re.search(r"\(([^)]*)\)\s*$", llarg)
@@ -208,7 +213,7 @@ def main():
         dates.add(re.search(r"D(\d{6})", os.path.basename(tram)).group(1))
         for l in llegir(vias):
             if l.startswith(pr):
-                noms[(clau_muni(pr, l[2:5]), l[5:10])] = nom_via(l[52:57].strip(), l[57:107].strip() or l[10:40].strip())
+                noms[(clau_muni(pr, l[2:5]), l[5:10])] = punt_volat(nom_via(l[52:57].strip(), l[57:107].strip() or l[10:40].strip()))
         for l in llegir(tram):
             if not l.startswith(pr):
                 continue
