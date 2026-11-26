@@ -182,7 +182,16 @@ body.amb-res #form{display:none}
 
   // Normalitza: minúscules, sense accents, sense puntuació
   function norm(s){return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/l·l/g,"ll").replace(/[^a-z0-9ñç ]+/g," ").replace(/\s+/g," ").trim()}
-  var STOP={"carrer":1,"c":1,"de":1,"del":1,"dels":1,"la":1,"les":1,"el":1,"els":1,"d":1,"l":1,"i":1,"avinguda":1,"av":1,"passeig":1,"pg":1,"placa":1,"pl":1,"ronda":1,"travessera":1,"passatge":1,"ptge":1,"baixada":1,"carretera":1,"ctra":1,"cami":1,"rambla":1,"jardins":1,"jardi":1,"placeta":1,"costa":1,"escales":1,"pujada":1,"riera":1,"torrent":1,"avda":1,"cr":1,"masia":1,"urbanitzacio":1};
+  var STOP={"carrer":1,"c":1,"de":1,"del":1,"dels":1,"la":1,"les":1,"el":1,"els":1,"d":1,"l":1,"i":1,"avinguda":1,"av":1,"passeig":1,"pg":1,"placa":1,"pl":1,"ronda":1,"travessera":1,"passatge":1,"ptge":1,"baixada":1,"carretera":1,"ctra":1,"cami":1,"rambla":1,"jardins":1,"jardi":1,"placeta":1,"costa":1,"escales":1,"pujada":1,"riera":1,"torrent":1,"avda":1,"cr":1,"masia":1,"urbanitzacio":1,"rbla":1,"rda":1,"calle":1,"cl":1,"avenida":1,"paseo":1,"plaza":1,"pza":1,"pasaje":1,"trav":1,"via":0};
+  // Tipus de via escrit per l'usuari -> com comença el nom oficial
+  var TIPUS={"carrer":"carrer","c":"carrer","calle":"carrer","cl":"carrer","avinguda":"avinguda","av":"avinguda","avda":"avinguda","avenida":"avinguda",
+    "passeig":"passeig","pg":"passeig","paseo":"passeig","placa":"placa","pl":"placa","plaza":"placa","pza":"placa","rambla":"rambla","rbla":"rambla",
+    "ronda":"ronda","rda":"ronda","passatge":"passatge","ptge":"passatge","pasaje":"passatge","travessera":"travessera","trav":"travessera",
+    "carretera":"carretera","ctra":"carretera","cami":"cami","placeta":"placeta","baixada":"baixada","riera":"riera","torrent":"torrent"};
+  // Paraules en castellà o abreujades que el cens escriu d'una altra manera
+  var ALIES={"mayor":"major","san":"sant","nueva":"nova","nuevo":"nou","iglesia":"esglesia","fuente":"font","puente":"pont","bcn":"barcelona"};
+  function tipusDe(q){var w=norm(q).split(" ")[0];return TIPUS[w]||null}
+  function alies(q){return norm(q).split(" ").map(function(w){return ALIES[w]||w}).join(" ")}
   function key(s){return norm(s).split(" ").filter(function(w){return w && !STOP[w]}).join(" ")}
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
   function showErr(m){err.innerHTML=m;err.classList.add("on")}
@@ -192,7 +201,7 @@ body.amb-res #form{display:none}
   fetch("dades/index.json").then(function(r){return r.json()}).then(function(d){
     IDX=d;
     d.municipis.forEach(function(m,mi){
-      MUNIS.push({code:m[0],name:m[1],n:norm(m[1]),k:key(m[1])});
+      MUNIS.push({code:m[0],name:m[1],n:norm(m[1]),k:key(m[1]),c:norm(m[1]).replace(/ /g,""),ck:key(m[1]).replace(/ /g,"")});
       m[2].forEach(function(nom,pos){streets.push({n:nom,k:key(nom),full:norm(nom),mi:mi,pos:pos})});
     });
     if(d.font) $("font").textContent=d.font;
@@ -207,17 +216,23 @@ body.amb-res #form{display:none}
 
   // Municipi escrit a l'adreça: "Major 5 Vic", "Rambla 12, Sabadell"
   function findMuni(text,exact){
-    var t=norm(text).replace(/^(a|de|d|en) /,""), k=key(t), out=[];
+    var t=alies(text).replace(/\b\d{5}\b/g," ").replace(/\s+/g," ").trim().replace(/^(a|de|d|en) /,""), k=key(t), out=[];
     if(!t) return null;
     MUNIS.forEach(function(m,mi){ if(m.n===t||(k&&m.k===k)) out.push(mi) });
+    if(!out.length){
+      // 'Pals Girona', 'Vic (Barcelona)': treu la província del final
+      var t2=t.replace(/ (barcelona|girona|lleida|tarragona)$/,"");
+      if(t2!==t&&t2) return findMuni(t2,exact);
+    }
     if(out.length||exact) return out;
     if(t.length<3) return [];
-    MUNIS.forEach(function(m,mi){ if(m.n.indexOf(t)===0||(k&&m.k.indexOf(k)===0)) out.push(mi) });
+    var tc=t.replace(/ /g,""), kc=k.replace(/ /g,"");
+    MUNIS.forEach(function(m,mi){ if(m.n.indexOf(t)===0||(k&&m.k.indexOf(k)===0)||m.c.indexOf(tc)===0||(kc&&m.ck.indexOf(kc)===0)) out.push(mi) });
     return out;
   }
   // "Carrer Muntaner, 240" -> {street, num, muni}
   function parse(q){
-    q=q||"";
+    q=(q||"").replace(/([a-zA-ZÀ-ÿ])(\d)/g,"$1 $2").replace(/\b\d{5}\b/g," ").replace(/\s+/g," ").replace(/ ,/g,",");
     var m=q.match(/^(.*?)[\s,]+(?:n[ºo°.]?\s*)?(\d{1,4})(?:\s?[a-zA-Z](?![a-zA-Z]))?(?:[\s,]+(.*))?$/);
     if(m && m[1].trim()) return {street:m[1].replace(/[\s,]+$/,""),num:parseInt(m[2],10),muni:(m[3]||"").trim()||null};
     var c=q.indexOf(",");
@@ -225,6 +240,7 @@ body.amb-res #form{display:none}
     return {street:q.replace(/[\s,]+$/,""),num:null,muni:null};
   }
   function search(q,filter){
+    var tw=tipusDe(q); q=alies(q);
     var k=key(q), f=norm(q); if(!f) return [];
     var toks=(k||f).split(" "), out=[], set=null;
     if(filter){set={};filter.forEach(function(x){set[x]=1})}
@@ -237,7 +253,7 @@ body.amb-res #form{display:none}
         ok=hit;
       }
       if(!ok) continue;
-      out.push([s.k.indexOf(k)===0?0:(s.full.indexOf(f)===0?1:2),s]);
+      out.push([(s.k.indexOf(k)===0?0:(s.full.indexOf(f)===0?1:2))+(tw&&s.full.indexOf(tw)!==0?3:0),s]);
     }
     out.sort(function(a,b){return (a[1].mi!==0)-(b[1].mi!==0)||a[0]-b[0]||a[1].k.length-b[1].k.length||a[1].k.localeCompare(b[1].k)||a[1].mi-b[1].mi});
     return out.slice(0,8).map(function(x){return x[1]});
@@ -251,6 +267,14 @@ body.amb-res #form{display:none}
       for(var n=Math.min(4,ws.length-1);n>=1&&!filter;n--){
         var f=findMuni(ws.slice(-n).join(" "),true);
         if(f&&f.length){ var st=ws.slice(0,-n).join(" "), l=search(st,f); if(l.length){ street=st; filter=f; } }
+      }
+    }
+    if(!filter){
+      // 'Pals, carrer Major 3': municipi al principi
+      var wf=street.replace(/,/g," ").split(/\s+/);
+      for(var n2=Math.min(4,wf.length-1);n2>=1&&!filter;n2--){
+        var f2=findMuni(wf.slice(0,n2).join(" "),true);
+        if(f2&&f2.length){ var st2=wf.slice(n2).join(" "), l2=search(st2,f2); if(l2.length){ street=st2; filter=f2; } }
       }
     }
     return {p:p,street:street,list:search(street,filter)};
@@ -338,7 +362,7 @@ body.amb-res #form{display:none}
     if(!pq.street.trim()){showErr("Escriu l'adreça, per exemple: carrer Muntaner, 240.");inC.focus();return}
     if(r.badMuni){showErr("No trobem el municipi «"+esc(r.badMuni)+"». <b>Aquest cercador només funciona per a Catalunya.</b>");inC.focus();return}
     if(!chosen){ var s=r.list; if(!s.length){showErr("<b>No trobem aquesta adreça a Catalunya.</b> Revisa com l'has escrit i afegeix el municipi al final.");inC.focus();return}
-      if(s.length===1||key(s[0].n)===key(r.street)) chosen=s[0]; }
+      if(s.length===1||key(s[0].n)===key(alies(r.street))) chosen=s[0]; }
     if(!chosen){showErr("Tria el carrer de la llista que apareix mentre escrius.");inC.focus();render();return}
     var n=pq.num;
     if(!n){showErr("Afegeix el número del portal, per exemple: "+esc(chosen.n)+", 12.");inC.focus();return}
