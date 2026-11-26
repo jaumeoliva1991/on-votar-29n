@@ -7,8 +7,8 @@
 <meta name="googlebot" content="noindex, nofollow, noarchive">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#00BDB6">
-<title>On voto? · 29N Barcelona</title>
-<meta name="description" content="Eleccions del 29N: troba la teva mesa i el teu col·legi electoral a Barcelona ciutat.">
+<title>On voto? · 29N</title>
+<meta name="description" content="Eleccions del 29N: troba la teva mesa i el teu col·legi electoral a la província de Barcelona.">
 <style>
 @font-face{font-family:Steradian;src:url(fonts/Steradian-Rg.ttf) format("truetype");font-weight:400;font-display:swap}
 @font-face{font-family:Steradian;src:url(fonts/Steradian-Bd.ttf) format("truetype");font-weight:700;font-display:swap}
@@ -121,7 +121,7 @@ footer .by{opacity:.85}
     <text x="32" y="51" text-anchor="middle" font-family="Steradian, system-ui, sans-serif" font-weight="900" font-size="15.5" letter-spacing="-.4" stroke-width="1.3" fill="currentColor" fill-opacity=".25">29N</text>
   </svg>
   <div class="hero-in">
-    <div class="pill"><span class="dot"></span>Eleccions 29N · Barcelona ciutat</div>
+    <div class="pill"><span class="dot"></span>Eleccions 29N · Província de Barcelona</div>
     <h1>On voto?</h1>
     <p class="sub">Troba la teva mesa i el teu col·legi electoral per al 29N en uns segons.</p>
   </div>
@@ -132,8 +132,8 @@ footer .by{opacity:.85}
     <div class="err" id="err" role="alert"></div>
     <form id="f" autocomplete="off" novalidate>
       <div class="field">
-        <label for="carrer">Adreça a Barcelona</label>
-        <input class="inp" id="carrer" type="text" inputmode="search" enterkeyhint="next" placeholder="Ex.: carrer Muntaner, 240" autocapitalize="words" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sug" aria-autocomplete="list">
+        <label for="carrer">Adreça</label>
+        <input class="inp" id="carrer" type="text" inputmode="search" enterkeyhint="next" placeholder="Ex.: carrer Muntaner 240, o Rambla 12 Sabadell" autocapitalize="words" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="sug" aria-autocomplete="list">
         <ul class="sug" id="sug" role="listbox"></ul>
       </div>
       <div class="field">
@@ -152,7 +152,7 @@ footer .by{opacity:.85}
 </main>
 
 <footer>
-  <div id="font">Eleccions 29N · Barcelona ciutat · Dades: INE, Cens Electoral</div>
+  <div id="font">Eleccions 29N · Província de Barcelona · Dades: INE, Cens Electoral i BOP</div>
   <div class="by">Elaborat per Jaume Oliva Sala</div>
 </footer>
 
@@ -160,79 +160,116 @@ footer .by{opacity:.85}
 <script>
 (function(){
   "use strict";
-  var D=null, streets=[], chosen=null, act=-1;
+  var IDX=null, MUNIS=[], streets=[], M={}, chosen=null, act=-1, list=[], curNum=null;
   var $=function(id){return document.getElementById(id)};
   var inC=$("carrer"), inG=$("cog"), sug=$("sug"), err=$("err"), res=$("res"), form=$("form");
 
   // Normalitza: minúscules, sense accents, sense puntuació
-  function norm(s){return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/l·l/g,"ll").replace(/[^a-z0-9ñç ]+/g," ").replace(/\s+/g," ").trim()}
-  var STOP={"carrer":1,"c":1,"de":1,"del":1,"dels":1,"la":1,"les":1,"el":1,"els":1,"d":1,"l":1,"i":1,"avinguda":1,"av":1,"passeig":1,"pg":1,"placa":1,"pl":1,"plaça":1,"via":0,"ronda":1,"travessera":1,"passatge":1,"ptge":1,"baixada":1,"carretera":1,"ctra":1,"cami":1,"rambla":1,"jardins":1,"jardi":1,"placeta":1,"costa":1,"escales":1,"pujada":1,"riera":1,"torrent":1,"avda":1};
+  function norm(s){return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/l·l/g,"ll").replace(/[^a-z0-9ñç ]+/g," ").replace(/\s+/g," ").trim()}
+  var STOP={"carrer":1,"c":1,"de":1,"del":1,"dels":1,"la":1,"les":1,"el":1,"els":1,"d":1,"l":1,"i":1,"avinguda":1,"av":1,"passeig":1,"pg":1,"placa":1,"pl":1,"ronda":1,"travessera":1,"passatge":1,"ptge":1,"baixada":1,"carretera":1,"ctra":1,"cami":1,"rambla":1,"jardins":1,"jardi":1,"placeta":1,"costa":1,"escales":1,"pujada":1,"riera":1,"torrent":1,"avda":1,"cr":1,"masia":1,"urbanitzacio":1};
   function key(s){return norm(s).split(" ").filter(function(w){return w && !STOP[w]}).join(" ")}
   function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
-
   function showErr(m){err.innerHTML=m;err.classList.add("on")}
   function clearErr(){err.classList.remove("on")}
 
-  fetch("dades.json",{cache:"no-cache"}).then(function(r){return r.json()}).then(function(d){
-    D=d;
-    streets=d.carrers.map(function(c){var k=key(c[0]);return {n:c[0],k:k,full:norm(c[0]),t:c[1]}});
-    if(d.meta&&d.meta.font) $("font").textContent=d.meta.font;
+  // Dades: índex de carrers de tota la província + un fitxer per municipi
+  fetch("dades/index.json").then(function(r){return r.json()}).then(function(d){
+    IDX=d;
+    d.municipis.forEach(function(m,mi){
+      MUNIS.push({code:m[0],name:m[1],n:norm(m[1]),k:key(m[1])});
+      m[2].forEach(function(nom,pos){streets.push({n:nom,k:key(nom),full:norm(nom),mi:mi,pos:pos})});
+    });
+    if(d.font) $("font").textContent=d.font;
+    carrega("019").then(function(){ if(inC.value) render(); });
     fromUrl();
   }).catch(function(){showErr("No s'han pogut carregar les dades. Torna-ho a provar d'aquí a una estona.")});
+  function carrega(code){
+    if(M[code]) return Promise.resolve(M[code]);
+    return fetch("dades/m/"+code+".json").then(function(r){return r.json()}).then(function(d){M[code]=d;return d});
+  }
+  function muniOf(s){return MUNIS[s.mi]}
 
-  // Autocompletar
-  function search(q){
+  // Municipi escrit a l'adreça: "Major 5 Vic", "Rambla 12, Sabadell"
+  function findMuni(text,exact){
+    var t=norm(text).replace(/^(a|de|d|en) /,""), k=key(t), out=[];
+    if(!t) return null;
+    MUNIS.forEach(function(m,mi){ if(m.n===t||(k&&m.k===k)) out.push(mi) });
+    if(out.length||exact) return out;
+    if(t.length<3) return [];
+    MUNIS.forEach(function(m,mi){ if(m.n.indexOf(t)===0||(k&&m.k.indexOf(k)===0)) out.push(mi) });
+    return out;
+  }
+  // "Carrer Muntaner, 240" -> {street, num, muni}
+  function parse(q){
+    q=q||"";
+    var m=q.match(/^(.*?)[\s,]+(?:n[ºo°.]?\s*)?(\d{1,4})(?:\s?[a-zA-Z](?![a-zA-Z]))?(?:[\s,]+(.*))?$/);
+    if(m && m[1].trim()) return {street:m[1].replace(/[\s,]+$/,""),num:parseInt(m[2],10),muni:(m[3]||"").trim()||null};
+    var c=q.indexOf(",");
+    if(c>0 && q.slice(c+1).trim()) return {street:q.slice(0,c).trim(),num:null,muni:q.slice(c+1).trim()};
+    return {street:q.replace(/[\s,]+$/,""),num:null,muni:null};
+  }
+  function search(q,filter){
     var k=key(q), f=norm(q); if(!f) return [];
-    var toks=(k||f).split(" ");
-    var out=[];
+    var toks=(k||f).split(" "), out=[], set=null;
+    if(filter){set={};filter.forEach(function(x){set[x]=1})}
     for(var i=0;i<streets.length;i++){
-      var s=streets[i], words=s.w||(s.w=s.full.split(" ")), ok=true;
+      var s=streets[i]; if(set&&!set[s.mi]) continue;
+      var words=s.w||(s.w=s.full.split(" ")), ok=true;
       for(var j=0;j<toks.length&&ok;j++){
         var t=toks[j], hit=false;
-        for(var m=0;m<words.length;m++){ if(words[m].indexOf(t)===0){hit=true;break} }
+        for(var w=0;w<words.length;w++){ if(words[w].indexOf(t)===0){hit=true;break} }
         ok=hit;
       }
       if(!ok) continue;
-      var sc=s.k.indexOf(k)===0?0:(s.full.indexOf(f)===0?1:2);
-      out.push([sc,s]);
+      out.push([s.k.indexOf(k)===0?0:(s.full.indexOf(f)===0?1:2),s]);
     }
-    out.sort(function(a,b){return a[0]-b[0]||a[1].k.length-b[1].k.length||a[1].k.localeCompare(b[1].k)});
+    out.sort(function(a,b){return (a[1].mi!==0)-(b[1].mi!==0)||a[0]-b[0]||a[1].k.length-b[1].k.length||a[1].k.localeCompare(b[1].k)||a[1].mi-b[1].mi});
     return out.slice(0,8).map(function(x){return x[1]});
+  }
+  // Interpreta el text: carrer, número i, si n'hi ha, municipi
+  function interpret(q){
+    var p=parse(q), filter=null, street=p.street;
+    if(p.muni){ filter=findMuni(p.muni,false); if(!filter.length) return {p:p,list:[],badMuni:p.muni}; }
+    else {
+      var ws=street.split(/\s+/);
+      for(var n=Math.min(4,ws.length-1);n>=1&&!filter;n--){
+        var f=findMuni(ws.slice(-n).join(" "),true);
+        if(f&&f.length){ var st=ws.slice(0,-n).join(" "), l=search(st,f); if(l.length){ street=st; filter=f; } }
+      }
+    }
+    return {p:p,street:street,list:search(street,filter)};
   }
   function hilite(name,q){
     var k=(key(q)||norm(q)).split(" ")[0]; if(!k) return esc(name);
     var n=norm(name), i=(" "+n).indexOf(" "+k);
-    if(i<0) return esc(name);
+    if(i<0||n.length!==name.length) return esc(name);
     return esc(name.slice(0,i))+"<b>"+esc(name.slice(i,i+k.length))+"</b>"+esc(name.slice(i+k.length));
   }
-  // "Carrer Muntaner, 240" -> {street:"Carrer Muntaner", num:240}
-  function parse(q){
-    var m=(q||"").match(/^(.*?)[\s,]+(?:n[ºo°.]?\s*)?(\d{1,4})\s*[a-zA-Z]{0,3}\s*(?:,.*)?$/);
-    if(m && m[1].trim()) return {street:m[1].replace(/[\s,]+$/,""),num:parseInt(m[2],10)};
-    return {street:(q||"").replace(/[\s,]+$/,""),num:null};
+  function trams(s){var d=M[muniOf(s).code];return d?d.carrers[s.pos][1]:null}
+  function lloc(s,num){
+    var mu=muniOf(s); if(mu.code!=="019") return mu.name;
+    var t=trams(s), ds=[]; if(!t) return "Barcelona";
+    if(num) seccions(t,num).forEach(function(k){var d=dName("019",k);if(ds.indexOf(d)<0)ds.push(d)});
+    if(!ds.length) t.forEach(function(r){var d=dName("019",r[3]);if(ds.indexOf(d)<0)ds.push(d)});
+    return "Barcelona · "+(ds.length>2?ds.slice(0,2).join(" · ")+"…":ds.join(" · "));
   }
-  function districtes(s,num){
-    var ds=[];
-    if(num){ seccions(s.t,num).forEach(function(k){var d=dName(k);if(ds.indexOf(d)<0)ds.push(d)}); if(ds.length) return ds.join(" · "); }
-    s.t.forEach(function(r){var d=dName(r[3]);if(ds.indexOf(d)<0)ds.push(d)});
-    return ds.length>2?ds.slice(0,2).join(" · ")+"…":ds.join(" · ");
-  }
-  var list=[], curNum=null;
   function render(){
-    var q=inC.value, p=parse(q); curNum=p.num; list=search(p.street); act=-1;
-    if(!p.street.trim()){close();return}
-    if(!list.length){sug.innerHTML='<li class="none">No trobem aquest carrer a Barcelona ciutat. Aquest cercador només és per a Barcelona.</li>';open();return}
-    sug.innerHTML=list.map(function(s,i){return '<li role="option" data-i="'+i+'">'+hilite(s.n,p.street)+(p.num?', '+p.num:'')+'<small>'+esc(districtes(s,p.num))+'</small></li>'}).join("");
+    if(!IDX) return;
+    var r=interpret(inC.value); curNum=r.p.num; list=r.list; act=-1;
+    if(!r.p.street.trim()){close();return}
+    if(r.badMuni){sug.innerHTML='<li class="none">No trobem el municipi «'+esc(r.badMuni)+'» a la província de Barcelona.</li>';open();return}
+    if(!list.length){sug.innerHTML='<li class="none">No trobem aquest carrer a la província de Barcelona.</li>';open();return}
+    sug.innerHTML=list.map(function(s,i){return '<li role="option" data-i="'+i+'">'+hilite(s.n,r.street)+(curNum?', '+curNum:'')+'<small>'+esc(lloc(s,curNum))+'</small></li>'}).join("");
     open();
   }
   function open(){sug.classList.add("on");inC.setAttribute("aria-expanded","true")}
   function close(){sug.classList.remove("on");inC.setAttribute("aria-expanded","false")}
+  function valor(s,num){var mu=muniOf(s);return s.n+", "+(num?num:"")+(mu.code!=="019"&&num?", "+mu.name:"")}
   function pick(i){
-    chosen=list[i]; clearErr(); close();
-    if(curNum){ inC.value=chosen.n+", "+curNum; inC.classList.add("ok"); inG.focus(); }
-    else { inC.value=chosen.n+", "; inC.focus(); try{inC.setSelectionRange(inC.value.length,inC.value.length)}catch(e){} hint("Ara afegeix el número del portal"); }
+    chosen=list[i]; clearErr(); close(); carrega(muniOf(chosen).code);
+    if(curNum){ inC.value=valor(chosen,curNum); inC.classList.add("ok"); inG.focus(); }
+    else { inC.value=valor(chosen,null); inC.focus(); try{inC.setSelectionRange(inC.value.length,inC.value.length)}catch(e){} inC.placeholder="Ara afegeix el número del portal"; }
   }
-  function hint(t){inC.placeholder=t}
   inC.addEventListener("input",function(){
     var p=parse(inC.value);
     if(chosen && norm(p.street)===norm(chosen.n)){ curNum=p.num; inC.classList.toggle("ok",!!p.num); if(!p.num) render(); else close(); return; }
@@ -248,21 +285,21 @@ footer .by{opacity:.85}
   });
   function mark(){[].forEach.call(sug.children,function(li,i){li.classList.toggle("act",i===act)})}
   sug.addEventListener("mousedown",function(e){var li=e.target.closest("li[data-i]");if(li){e.preventDefault();pick(+li.dataset.i)}});
-  document.addEventListener("click",function(e){if(!e.target.closest(".field")) close()});
+  document.addEventListener("click",function(e){if(e.target!==inC && !e.target.closest("#sug")) close()});
+  inC.addEventListener("blur",function(){setTimeout(close,150)});
 
   // Lletra del primer cognom
   function inicial(c){
-    var n=(c||"").trim().toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+    var n=(c||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
     var m=n.match(/[A-ZÑÇ]/); if(!m) return "";
     var l=m[0]; if(l==="Ç") l="C";
     return l;
   }
-  function inRange(l,a,b){ if(l==="Ñ") l="N￿"; return l>=a && l<=b }
-
+  function inRange(l,a,b){ if(l==="Ñ") l="N\uFFFF"; return l>=a && l<=b }
   function seccions(t,n){
     var odd=n%2===1, hits=[];
     for(var i=0;i<t.length;i++){var r=t[i];
-      if(n>=r[0]&&n<=r[1]&&(r[2]===0||(r[2]===1&&odd)||(r[2]===2&&!odd))) hits.push(r[3]);}
+      if(n>=r[0]&&n<=r[1]&&(r[2]===0||(r[2]===1&&odd)||(r[2]===2&&!odd))&&hits.indexOf(r[3])<0) hits.push(r[3]);}
     return hits;
   }
   function veins(t,n){ // seccions dels trams més propers, mateixa paritat
@@ -271,75 +308,89 @@ footer .by{opacity:.85}
       var d=n<r[0]?r[0]-n:(n>r[1]?n-r[1]:0); if(best[r[3]]===undefined||d<best[r[3]]) best[r[3]]=d;});
     return Object.keys(best).sort(function(a,b){return best[a]-best[b]}).slice(0,3);
   }
-
-  function mesaFor(sec,l){
-    var ms=D.seccions[sec]; if(!ms) return null;
+  function mesaFor(d,sec,l){
+    var ms=d.seccions[sec]; if(!ms) return null;
     if(ms.length===1) return ms[0];
     for(var i=0;i<ms.length;i++) if(inRange(l,ms[i][1],ms[i][2])) return ms[i];
     return null;
   }
 
   $("f").addEventListener("submit",function(e){
-    e.preventDefault(); clearErr();
-    if(!D){showErr("Encara s'estan carregant les dades. Espera un moment.");return}
-    var pq=parse(inC.value);
+    e.preventDefault(); clearErr(); close();
+    if(!IDX){showErr("Encara s'estan carregant les dades. Espera un moment.");return}
+    var r=interpret(inC.value), pq=r.p;
     if(!pq.street.trim()){showErr("Escriu l'adreça, per exemple: carrer Muntaner, 240.");inC.focus();return}
-    if(!chosen){ var s=search(pq.street); if(!s.length){showErr("<b>Aquesta adreça no és de Barcelona ciutat</b>, o no la trobem al cens. Aquest cercador només funciona per a Barcelona.");inC.focus();return}
-      if(s.length===1||key(s[0].n)===key(pq.street)) chosen=s[0]; }
+    if(r.badMuni){showErr("No trobem el municipi «"+esc(r.badMuni)+"». <b>Aquest cercador només funciona per a la província de Barcelona.</b>");inC.focus();return}
+    if(!chosen){ var s=r.list; if(!s.length){showErr("<b>No trobem aquesta adreça a la província de Barcelona.</b> Revisa com l'has escrit; el cercador només funciona per a la província de Barcelona.");inC.focus();return}
+      if(s.length===1||key(s[0].n)===key(r.street)) chosen=s[0]; }
     if(!chosen){showErr("Tria el carrer de la llista que apareix mentre escrius.");inC.focus();render();return}
     var n=pq.num;
     if(!n){showErr("Afegeix el número del portal, per exemple: "+esc(chosen.n)+", 12.");inC.focus();return}
     var l=inicial(inG.value);
     if(!l){showErr("Escriu el teu primer cognom. Només en farem servir la primera lletra.");inG.focus();return}
-    var hits=seccions(chosen.t,n).filter(function(v,i,a){return a.indexOf(v)===i});
-    if(!hits.length){ return showNone(n,veins(chosen.t,n),l) }
-    if(!D.seccions[hits[0]]) return showOther(hits[0],n);
-    show(hits[0],n,l);
+    var s0=chosen, code=muniOf(s0).code;
+    carrega(code).then(function(d){
+      var t=d.carrers[s0.pos][1], hits=seccions(t,n);
+      if(!hits.length) return showNone(code,s0,n,veins(t,n),l);
+      var sec=hits[0];
+      if(!d.seccions[sec]){
+        var parts=Object.keys(d.seccions).filter(function(k){return k.indexOf(sec+"-")===0});
+        return showNone(code,s0,n,parts,l,true);
+      }
+      var m=mesaFor(d,sec,l); if(!m){showErr("No trobem la mesa per a aquesta secció.");return}
+      card(code,sec,m,'<p class="where">Per a <b>'+esc(s0.n)+", "+n+(code!=="019"?" ("+esc(muniOf(s0).name)+")":"")+'</b>'+(m[0]==="U"?'':' · cognom per <b>'+esc(l)+'</b>')+'</p>',true);
+    }).catch(function(){showErr("No s'han pogut carregar les dades d'aquest municipi. Torna-ho a provar.")});
   });
 
-  function maps(loc){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(loc[0]+", "+loc[1]+", "+loc[2]+" Barcelona")}
-
-  function show(sec,n,l){
-    var m=mesaFor(sec,l); if(!m){showErr("No trobem la mesa per a aquesta secció.");return}
-    var unica=m[0]==="U";
-    card(sec,m,'<p class="where">Per a <b>'+esc(chosen.n)+", "+n+'</b>'+(unica?'':' · cognom per <b>'+esc(l)+'</b>')+'</p>',true);
+  function muniName(code){for(var i=0;i<MUNIS.length;i++) if(MUNIS[i].code===code) return MUNIS[i].name; return ""}
+  function maps(code,loc){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(loc[0]+", "+loc[1]+", "+loc[2]+" "+muniName(code))}
+  function secNum(k){return String(k).split("-")[1]}
+  function dName(code,k){
+    if(code!=="019"){
+      var dd={}; Object.keys((M[code]||{}).seccions||{}).forEach(function(x){dd[x.split("-")[0]]=1});
+      return muniName(code)+(Object.keys(dd).length>1?" · Districte "+String(k).split("-")[0]:"");
+    }
+    var d=String(k).split("-")[0], ds=M["019"]&&M["019"].districtes;
+    return (ds&&ds[d])||("Districte "+d);
   }
-  // Enllaç per al QR: només secció i mesa, cap dada personal
-  function link(sec,m){return location.origin+location.pathname+"?s="+encodeURIComponent(sec)+"&m="+encodeURIComponent(m[0])}
-  function card(sec,m,head,withQr){
-    var loc=D.locals[m[3]], unica=m[0]==="U", sn=secNum(sec);
+  // Enllaç per al QR: només municipi, secció i mesa, cap dada personal
+  function link(code,sec,m){return location.origin+location.pathname+"?mu="+code+"&s="+encodeURIComponent(sec)+"&m="+encodeURIComponent(m[0])}
+  function card(code,sec,m,head,withQr){
+    var d=M[code], loc=d.locals[m[3]], unica=m[0]==="U", sn=secNum(sec);
     res.innerHTML=head+
-      '<div class="vot"><div class="dist">'+esc(dName(sec))+'</div><div class="grid">'+
+      '<div class="vot"><div class="dist">'+esc(dName(code,sec))+'</div><div class="grid">'+
         '<div class="t"><div class="l">Secció</div><div class="n">'+esc(sn)+'</div></div>'+
         '<div class="t m"><div class="l">Mesa</div><div class="n'+(unica?' sm':'')+'">'+(unica?'Única':esc(m[0]))+'</div></div></div>'+
         (unica?'':'<div class="c">Cognoms de la <b>'+esc(m[1])+'</b> a la <b>'+esc(m[2])+'</b></div>')+'</div>'+
-      '<div class="local"><div class="k">Col·legi electoral</div><div class="nom">'+esc(loc[0])+'</div><div class="adr">'+esc(loc[1])+' · '+esc(loc[2])+' Barcelona</div></div>'+
+      '<div class="local"><div class="k">Col·legi electoral</div><div class="nom">'+esc(loc[0])+'</div><div class="adr">'+esc(loc[1])+' · '+esc(loc[2])+' '+esc(muniName(code))+'</div></div>'+
       '<div class="acts">'+
-        '<a class="a p" href="'+maps(loc)+'" target="_blank" rel="noopener"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Com arribar-hi</a>'+
-        (withQr?'<button class="a w s" type="button" id="share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>Comparteix amb el votant</button>'+shareBox(link(sec,m),shareTxt(sec,m)):'')+
+        '<a class="a p" href="'+maps(code,loc)+'" target="_blank" rel="noopener"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Com arribar-hi</a>'+
+        (withQr?'<button class="a w s" type="button" id="share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>Comparteix amb el votant</button>'+shareBox(link(code,sec,m),shareTxt(code,sec,m)):'')+
         '<button class="a w" type="button" id="again">'+(withQr?'Nova cerca':'Busca una altra adreça')+'</button>'+
       '</div>'+
       '<p class="note">Informació orientativa. En cas de dubte, consulta la teva targeta censal o la consulta oficial.</p>';
     reveal();
-    if(withQr) wireShare(link(sec,m),shareTxt(sec,m));
+    if(withQr) wireShare(link(code,sec,m),shareTxt(code,sec,m));
   }
-  // Obertura des del QR: ?s=5-10&m=B
+  // Obertura des del QR: ?mu=019&s=5-10&m=B (sense mu = Barcelona)
   function fromUrl(){
     try{
-      var q=new URLSearchParams(location.search), sec=q.get("s"), mm=q.get("m");
-      if(!sec||!mm||!D.seccions[sec]) return;
-      var m=D.seccions[sec].filter(function(x){return x[0]===mm})[0]; if(!m) return;
-      card(sec,m,'<p class="where" style="font-size:18px"><b>Aquí és on has d\'anar a votar el 29N:</b></p>',false);
-      history.replaceState(null,"",location.pathname+location.search);
+      var q=new URLSearchParams(location.search), code=q.get("mu")||"019", sec=q.get("s"), mm=q.get("m");
+      if(!sec||!mm||!/^\d{3}$/.test(code)) return;
+      carrega(code).then(function(d){
+        if(!d.seccions[sec]) return;
+        var m=d.seccions[sec].filter(function(x){return x[0]===mm})[0]; if(!m) return;
+        card(code,sec,m,'<p class="where" style="font-size:18px"><b>Aquí és on has d\'anar a votar el 29N:</b></p>',false);
+      }).catch(function(){});
     }catch(e){}
   }
-
-  function showNone(n,v,l){
-    var opts=v.map(function(sec){var m=mesaFor(sec,l);if(!m)return "";var loc=D.locals[m[3]];
+  function showNone(code,s0,n,v,l,partida){
+    var d=M[code];
+    var opts=v.map(function(sec){var m=mesaFor(d,sec,l);if(!m)return "";var loc=d.locals[m[3]];
       return '<li>Secció '+esc(secNum(sec))+(m[0]==="U"?"":" · Mesa "+esc(m[0]))+': <b>'+esc(loc[0])+'</b>, '+esc(loc[1])+'</li>'}).join("");
-    res.innerHTML='<p class="where">Per a <b>'+esc(chosen.n)+", "+n+'</b></p>'+
-      '<div class="err on" style="margin:0">No trobem aquest número exacte al cens electoral (pot ser que no hi visqui ningú censat).</div>'+
-      (opts?'<div class="alt">Els portals més propers del mateix costat voten a:<ul>'+opts+'</ul></div>':'')+
+    res.innerHTML='<p class="where">Per a <b>'+esc(s0.n)+", "+n+(code!=="019"?" ("+esc(muniName(code))+")":"")+'</b></p>'+
+      '<div class="err on" style="margin:0">'+(partida?"Aquesta secció està partida en zones i no podem saber amb seguretat quina et toca. Consulta la teva targeta censal.":"No trobem aquest número exacte al cens electoral (pot ser que no hi visqui ningú censat).")+'</div>'+
+      (opts?'<div class="alt">'+(partida?"Les opcions possibles són:":"Els portals més propers del mateix costat voten a:")+'<ul>'+opts+'</ul></div>':'')+
       '<div class="acts"><button class="a p" type="button" id="again">Nova cerca</button></div>';
     reveal();
   }
@@ -354,9 +405,9 @@ footer .by{opacity:.85}
         '<button type="button" class="a" id="copy">Copia</button></div></div>'+
     '</div>';
   }
-  function shareTxt(sec,m){
-    var loc=D.locals[m[3]];
-    return "🗳️ On has d'anar a votar el 29N:\n"+"Secció "+secNum(sec)+" · "+(m[0]==="U"?"Mesa única":"Mesa "+m[0])+"\n"+loc[0]+"\n"+loc[1]+" ("+loc[2]+" Barcelona)\n";
+  function shareTxt(code,sec,m){
+    var loc=M[code].locals[m[3]];
+    return "🗳️ On has d'anar a votar el 29N:\n"+"Secció "+secNum(sec)+" · "+(m[0]==="U"?"Mesa única":"Mesa "+m[0])+"\n"+loc[0]+"\n"+loc[1]+" ("+loc[2]+" "+muniName(code)+")\n";
   }
   function wireShare(url,txt){
     var b=$("share"); if(!b) return; var sh=$("sh");
@@ -370,18 +421,9 @@ footer .by{opacity:.85}
       (navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(function(){c.textContent="Copiat!"},function(){c.textContent="No s'ha pogut copiar"});
       setTimeout(function(){c.textContent="Copia"},2000)});
   }
-  function secNum(k){return String(k).split("-")[1]}
-  function dName(k){var d=String(k).split("-")[0];return (D.meta&&D.meta.districtes&&D.meta.districtes[d])||("Districte "+d)}
-  function showOther(sec,n){
-    res.innerHTML='<p class="where">Per a <b>'+esc(chosen.n)+", "+n+'</b></p>'+
-      '<div class="mesa"><div class="big u">'+esc(String(sec).split("-")[0])+'</div><div><div class="k">Districte · Secció '+esc(secNum(sec))+'</div><div class="v">'+esc(dName(sec))+'</div></div></div>'+
-      '<div class="alt">De moment només tenim les meses i els col·legis de Sarrià-Sant Gervasi. Aviat hi afegirem la resta de districtes.</div>'+
-      '<div class="acts"><button class="a p" type="button" id="again">Nova cerca</button></div>';
-    reveal();
-  }
   function reveal(){
     form.style.display="none"; res.classList.add("on");
-    $("again").addEventListener("click",function(){if(location.search)history.replaceState(null,"",location.pathname);res.classList.remove("on");form.style.display="";inC.value="";chosen=null;inC.classList.remove("ok");inC.placeholder="Ex.: carrer Muntaner, 240";inG.value="";inC.focus();window.scrollTo({top:0,behavior:"smooth"})});
+    $("again").addEventListener("click",function(){if(location.search)history.replaceState(null,"",location.pathname);res.classList.remove("on");form.style.display="";inC.value="";chosen=null;inC.classList.remove("ok");inC.placeholder="Ex.: carrer Muntaner 240, o Rambla 12 Sabadell";inG.value="";inC.focus();window.scrollTo({top:0,behavior:"smooth"})});
     window.scrollTo({top:0,behavior:"smooth"});
   }
 })();
