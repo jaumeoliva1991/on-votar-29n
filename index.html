@@ -398,7 +398,7 @@ footer .by{opacity:.85}
     var svg=""; try{ var q=qrcode(0,"M"); q.addData(url); q.make(); svg=q.createSvgTag({cellSize:4,margin:0,scalable:true}); }catch(e){}
     return '<div class="sh" id="sh" hidden>'+
       '<div class="tabs" role="tablist"><button type="button" class="tab on" data-t="qr">Codi QR</button><button type="button" class="tab" data-t="ln">Enllaç</button></div>'+
-      '<div class="pane" data-p="qr"><div class="qrimg" role="img" aria-label="Codi QR">'+svg+'</div><p>Escaneja'l amb la càmera del mòbil.</p></div>'+
+      '<div class="pane" data-p="qr"><div class="qrimg" role="img" aria-label="Codi QR">'+svg+'</div><p>Escaneja\'l amb la càmera del mòbil.</p></div>'+
       '<div class="pane" data-p="ln" hidden><div class="url">'+esc(url)+'</div>'+
         '<div class="row2">'+(navigator.share?'<button type="button" class="a" id="nat">Envia…</button>':'')+
         '<a class="a" href="https://api.whatsapp.com/send?text='+encodeURIComponent(txt+"\n"+url)+'">WhatsApp</a>'+
